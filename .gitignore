@@ -21,7 +21,6 @@ unity/
 # Docs
 doc/
 hw/
-scripts/
 
 # Source (keep in lib/ and shared/)
 src/
