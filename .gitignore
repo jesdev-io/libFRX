@@ -1,0 +1,35 @@
+# PlatformIO
+.pio/
+
+# IDE
+.venv/
+.vscode/
+.idea/
+
+# Build artifacts
+build/
+
+# Unity test framework
+unity/
+
+# Upload and debug
+.uploading
+
+# Serial monitor output
+.serial_monitor
+
+# Docs
+doc/
+hw/
+scripts/
+
+# Source (keep in lib/ and shared/)
+src/
+include/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

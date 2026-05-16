@@ -1,0 +1,70 @@
+{
+    "name": "libFRX",
+    "version": "0.0.1",
+    "description": "FRX shared firmware library - modular drivers for FR1-mini, FR2, and other FRX devices",
+    "keywords": ["FRX", "FR0", "FR1", "FR1-mini", "FR2", "ESP32", "audio", "DSP", "I2C", "SPI", "SDCard", "SDMMC", "external flash", "synth", "wav", "syserr", "utils"],
+    "repository":
+    {
+        "type": "git",
+        "url": "https://github.com/jesdev-io/libFRX"
+    },
+    "authors":
+    [
+        {
+            "name": "jake-is-ESD-protected",
+            "url": "https://github.com/jesdev-io"
+        },
+        {
+            "name": "phiMale",
+            "url": "https://github.com/jesdev-io"
+        }
+    ],
+    "license": "Apache-2.0",
+    "frameworks": ["arduino"],
+    "platforms": ["espressif32"],
+    "dependencies": {
+        "jesdev-io/jescore": "^2.3.0"
+    },
+    "export": {
+      "exclude": [
+        ".pio",
+        ".venv*",
+        ".vscode",
+        ".github",
+        ".obsidian",
+        "doc",
+        "hw",
+        "scripts",
+        "src",
+        "test"
+      ]
+    },
+    "headers": [
+      "lib/audio/audio.h",
+      "lib/dsp_frx/dsp_frx.h",
+      "lib/ext_flash/ext_flash.h",
+      "lib/i2c/i2c_base.h",
+      "lib/sdcard/sdcard.h",
+      "lib/synth/synth.h",
+      "lib/syserr/syserr.h",
+      "lib/utils/utils.h",
+      "lib/wav/wav.h"
+    ],
+    "build": {
+        "srcDir": ".",
+        "includeDir": "lib",
+        "srcFilter": ["+<lib/*/*.cpp>", "+<lib/*/*.c>", "+<shared/*/*.py>"],
+        "flags": [
+          "-Ilib/audio",
+          "-Ilib/dsp_frx",
+          "-Ilib/ext_flash",
+          "-Ilib/i2c",
+          "-Ilib/sdcard",
+          "-Ilib/synth",
+          "-Ilib/syserr",
+          "-Ilib/utils",
+          "-Ilib/wav"
+        ],
+        "extraScript": "shared/scripts/get_time.py"
+      }
+  }
