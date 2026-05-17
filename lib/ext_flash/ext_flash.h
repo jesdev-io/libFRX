@@ -117,6 +117,7 @@ e_syserr_t ef_read_rom(ext_flash_rom_t* rom);
 /// @brief Write generic ROM data to the W25Qxx.
 /// @param rom ROM data to write.
 /// @return Error code.
+/// @note Only use this if you know what you are doing! This violates the "RO" in "ROM"!
 e_syserr_t ef_write_rom(ext_flash_rom_t* rom);
 
 /// @brief Read settings from the W25Qxx.
