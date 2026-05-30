@@ -33,6 +33,10 @@
 #define AUDIO_MAX_NUM_CH        2
 #endif
 
+#ifndef AUDIO_BPS_DEFAULT
+#define AUDIO_BPS_DEFAULT       32
+#endif
+
 #ifndef AUDIO_SR_44100
 #define AUDIO_SR_44100          44100
 #endif
