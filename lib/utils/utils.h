@@ -3,7 +3,16 @@
 
 #ifdef FRX_ENABLE_MODULE_UTILS
 
+#include <jescore.h>
 #include "syserr.h"
+
+#ifdef UTILS_DEBUG_PRINT_ENABLE
+#define UTILS_DEBUG_PRINT(format, ...) jes_print(format, ##__VA_ARGS__)
+#define UTILS_DEBUG_PRINT_PJ(pj, format, ...) jes_print_pj(pj, format, ##__VA_ARGS__)
+#else
+#define UTILS_DEBUG_PRINT(format, ...)
+#define UTILS_DEBUG_PRINT_PJ(pj, format, ...)
+#endif
 
 /// @brief Remove all occurrences of a substring from a string.
 /// @param str The string to modify (in-place).
