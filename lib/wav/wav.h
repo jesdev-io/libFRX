@@ -3,10 +3,17 @@
 
 #ifdef FRX_ENABLE_MODULE_WAV
 
+#ifndef FRX_ENABLE_MODULE_AUDIO
+#error "WAV module requires AUDIO module to be enabled. Define FRX_ENABLE_MODULE_AUDIO."
+#endif
+
+#ifndef FRX_ENABLE_MODULE_SDCARD
+#error "WAV module requires SDCARD module to be enabled. Define FRX_ENABLE_MODULE_SDCARD."
+#endif
+
 #include <stdint.h>
 #include <stdio.h>
 #include "syserr.h"
-#include "audio.h"
 
 // Configuration macros - can be overridden by consuming projects
 #ifndef WAV_HEADER_SIZE

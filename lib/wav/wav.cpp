@@ -1,18 +1,10 @@
 #ifdef FRX_ENABLE_MODULE_WAV
 
+#include <string.h>
 #include "wav.h"
 #include "syserr.h"
-#include <string.h>
-
-// Forward declarations for sdcard functions
-// These should be provided by the consuming project's sdcard module
-e_syserr_t sd_create_file(const char* path);
-e_syserr_t sd_write(void* data, uint16_t type_size, uint32_t len, const char* fname, const char* mode, uint32_t pos, uint32_t* points_w);
-FILE* sd_stream_write_open(const char* fname);
-FILE* sd_stream_read_open(const char* fname);
-void sd_stream_close(FILE* f);
-e_syserr_t sd_stream_in(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_w);
-e_syserr_t sd_stream_out(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_r);
+#include "audio.h"
+#include "sdcard.h"
 
 wav_hdr_t wav_create_header(uint16_t numChannels, uint32_t sampleRate, uint16_t bitsPerSample) {
     wav_hdr_t header;
