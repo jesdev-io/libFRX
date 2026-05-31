@@ -52,15 +52,13 @@ NOTE: Projects MUST define pin macros in platformio.ini (see PIN_DEFS.md)
 #define SDCARD_MAX_FREQ_BUS_DEFAULT SDMMC_FREQ_DEFAULT
 #endif
 
-// SD mode - REQUIRED: Projects MUST define in platformio.ini
-// Options: sd_mode_spi, sd_mode_sdmmc, sd_mode_auto
-#ifndef SDCARD_MODE
-#error "SDCARD_MODE must be defined in platformio.ini (see PIN_DEFS.md)"
+#if !defined(SDCARD_MODE_SPI) && !defined(SDCARD_MODE_SDMMC)
+#error "SDCARD_MODE must either be sd_mode_sdmmc or sd_mode_spi!"
 #endif
 
-// SPI pin configuration - REQUIRED when SDCARD_MODE=sd_mode_spi or sd_mode_auto
+// SPI pin configuration - REQUIRED when SDCARD_MODE_SPI is defined.
 // Projects MUST define these in platformio.ini (see PIN_DEFS.md)
-#if SDCARD_MODE == sd_mode_spi || SDCARD_MODE == sd_mode_auto
+#ifdef SDCARD_MODE_SPI
 #ifndef SDCARD_SPI_PIN_CS
 #error "SDCARD_SPI_PIN_CS must be defined in platformio.ini for SPI mode (see PIN_DEFS.md)"
 #endif
@@ -76,11 +74,11 @@ NOTE: Projects MUST define pin macros in platformio.ini (see PIN_DEFS.md)
 #ifndef SDCARD_SPI_PIN_SCK
 #error "SDCARD_SPI_PIN_SCK must be defined in platformio.ini for SPI mode (see PIN_DEFS.md)"
 #endif
-#endif // SDCARD_MODE == sd_mode_spi || SDCARD_MODE == sd_mode_auto
+#endif // SDCARD_MODE_SPI
 
-// SDMMC pin configuration - REQUIRED when SDCARD_MODE=sd_mode_sdmmc or sd_mode_auto
+// SDMMC pin configuration - REQUIRED when SDCARD_MODE_SDMMC is defined.
 // Projects MUST define these in platformio.ini (see PIN_DEFS.md)
-#if SDCARD_MODE == sd_mode_sdmmc || SDCARD_MODE == sd_mode_auto
+#ifdef SDCARD_MODE_SDMMC
 #ifndef SDCARD_SDMMC_PIN_CLK
 #error "SDCARD_SDMMC_PIN_CLK must be defined in platformio.ini for SDMMC mode (see PIN_DEFS.md)"
 #endif
@@ -104,8 +102,7 @@ NOTE: Projects MUST define pin macros in platformio.ini (see PIN_DEFS.md)
 #ifndef SDCARD_SDMMC_PIN_D3
 #error "SDCARD_SDMMC_PIN_D3 must be defined in platformio.ini for SDMMC mode (see PIN_DEFS.md)"
 #endif
-#endif // SDCARD_MODE == sd_mode_sdmmc || SDCARD_MODE == sd_mode_auto
-#endif
+#endif // SDCARD_MODE_SDMMC
 
 #ifndef SDCARD_LS_MAX_CHAR
 #define SDCARD_LS_MAX_CHAR          256
@@ -119,32 +116,6 @@ NOTE: Projects MUST define pin macros in platformio.ini (see PIN_DEFS.md)
 #define SDCARD_PATH_MAX_CHAR        64
 #endif
 
-#ifndef SDCARD_DEFAULT_FNAME_WAV
-#define SDCARD_DEFAULT_FNAME_WAV    "fr1_rec_0000.wav"
-#endif
-
-#ifndef SDCARD_METADATA_FNAME
-#define SDCARD_METADATA_FNAME       ".fr2_metadata.txt"
-#endif
-
-/// @brief SD card mode (SPI or SDMMC)
-typedef enum {
-    sd_mode_spi,
-    sd_mode_sdmmc,
-    sd_mode_auto  // Try SDMMC first, fall back to SPI
-} sd_mode_t;
-
-/// @deprecated
-/// @enum SD card control commands.
-typedef enum {
-    sd_cmd_act_none,
-    sd_cmd_mnt,
-    sd_cmd_unmnt,
-    sd_cmd_write_chunk,
-    sd_cmd_read_chunk,
-    NUM_SD_ACTIONS
-} sd_cmd_t;
-
 typedef enum{
     sd_stream_direction_in,
     sd_stream_direction_out
@@ -152,7 +123,7 @@ typedef enum{
 
 typedef struct{
     FILE* f;
-    audio_sample_t* data;
+    void* data;
     uint32_t block_len;
     uint32_t type_in_byte;
     sd_stream_direction_t direction;
@@ -161,10 +132,10 @@ typedef struct{
 /// @brief Initialize the SD card config struct.
 /// @param max_files Max amount of files in FS.
 /// @param max_freq_khz Max bus transfer speed. Pass 0 to use the default value.
-/// @param mode SD card mode: sd_mode_spi or sd_mode_sdmmc.
-/// @return Error code. Either returns `e_syserr_none` or `e_syserr_param`.
-/// @note Does not perform calls to ESP-IDF functions, only sets a struct.
-e_syserr_t sd_init(int32_t max_files, uint32_t max_freq_khz, sd_mode_t mode);
+/// @return Error code.
+/// @note Regsiters the CLI callable "sdcard" job and registers/launches the hidden
+///       "sdstrm" data streaming job.
+e_syserr_t sd_init(int32_t max_files, uint32_t max_freq_khz);
 
 /// @brief Initialize the SD card with default values.
 /// @return Error code.
@@ -260,7 +231,7 @@ e_syserr_t sd_read(void* data, uint16_t type_size, uint32_t len, const char* fna
 e_syserr_t sd_read_txt(char* data, uint32_t len, const char* fname, uint32_t pos, uint32_t*  points_r);
 
 /// @brief Write to SD with an open file pointer supplied from outside.
-/// @param data Pointer to empty audio data array.
+/// @param data Pointer to empty data array.
 /// @param len Length of data (not in byte).
 /// @param bps Bits per single channel sample (resolution).
 /// @param nch Amount of active channels.
@@ -269,17 +240,17 @@ e_syserr_t sd_read_txt(char* data, uint32_t len, const char* fname, uint32_t pos
 /// @return Error code.
 /// @note The file pointer **needs** to be opened in 'ab' mode, otherwise data will be destroyed.
 /// Additionally, should an error occur, the function **does not** close the file. Close it from outside!
-e_syserr_t sd_stream_in(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_w);
+e_syserr_t sd_stream_in(void* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_w);
 
 /// @brief Read from SD with an open file pointer supplied from outside.
-/// @param data Pointer to audio data array.
+/// @param data Pointer to data array.
 /// @param len Length of data (not in byte).
 /// @param bps Bits per single channel sample (resolution).
 /// @param nch Amount of active channels.
 /// @param f Already opened file pointer.
 /// @param points_r Amount of data points that were actually read from the file.
 /// @return Error code.
-e_syserr_t sd_stream_out(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_r);
+e_syserr_t sd_stream_out(void* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_r);
 
 /// @brief Open file stream indefinitely for out-of-scope operations.
 /// @param fname Name of the file.

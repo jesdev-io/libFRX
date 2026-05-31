@@ -1,7 +1,6 @@
 #ifdef FRX_ENABLE_MODULE_SDCARD
 
 #include <jescore.h>
-#include "sdcard.h"
 #include "esp_vfs_fat.h"
 #include "driver/sdmmc_host.h"
 #include "driver/sdmmc_types.h"
@@ -12,8 +11,8 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "sdcard.h"
 #include "utils.h"
-#include "fsm.h"
 
 /// @brief 
 /// @param p 
@@ -24,22 +23,23 @@ static esp_vfs_fat_sdmmc_mount_config_t mount_config;
 static sdmmc_card_t* card = NULL;
 static uint8_t mounted = 0;
 static SemaphoreHandle_t stream_lock = NULL;
-static sd_mode_t current_sd_mode = SDCARD_MODE;
 
 // SPI-specific state
+#ifdef SDCARD_MODE_SPI
 static sdmmc_host_t spi_host = SDSPI_HOST_DEFAULT();
 static sdspi_device_config_t spi_slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
 static spi_bus_config_t spi_bus_cfg;
+#endif // SDCARD_MODE_SPI
 
 // SDMMC-specific state
+#ifdef SDCARD_MODE_SDMMC
 static sdmmc_host_t sdmmc_host = SDMMC_HOST_DEFAULT();
 static sdmmc_slot_config_t sdmmc_slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
-
-static esp_err_t __mount_sdmmc(void);
-static esp_err_t __mount_spi(void);
+#endif // SDCARD_MODE_SDMMC
 
 /// @brief Initialize SDMMC-specific configuration
-static void __init_sdmmc_config(int32_t max_files, uint32_t max_freq_khz) {
+static void __sdcard_config(int32_t max_files, uint32_t max_freq_khz) {
+    #ifdef SDCARD_MODE_SDMMC
     sdmmc_host.flags = SDMMC_HOST_FLAG_4BIT | SDMMC_HOST_FLAG_DEINIT_ARG;
     if (max_freq_khz > SDMMC_FREQ_HIGHSPEED) return;
     if (max_freq_khz != 0) {
@@ -47,32 +47,20 @@ static void __init_sdmmc_config(int32_t max_files, uint32_t max_freq_khz) {
     } else {
         sdmmc_host.max_freq_khz = SDCARD_MAX_FREQ_BUS_DEFAULT;
     }
-
-#ifndef SDCARD_SDMMC_PIN_CLK
-    // If not defined, use FR2 defaults
-    sdmmc_slot_config.clk = (gpio_num_t)36;
-    sdmmc_slot_config.cmd = (gpio_num_t)35;
-    sdmmc_slot_config.d0 = (gpio_num_t)37;
-    sdmmc_slot_config.d1 = (gpio_num_t)38;
-    sdmmc_slot_config.d2 = (gpio_num_t)45;
-    sdmmc_slot_config.d3 = (gpio_num_t)39;
-#else
     sdmmc_slot_config.clk = (gpio_num_t)SDCARD_SDMMC_PIN_CLK;
     sdmmc_slot_config.cmd = (gpio_num_t)SDCARD_SDMMC_PIN_CMD;
     sdmmc_slot_config.d0 = (gpio_num_t)SDCARD_SDMMC_PIN_D0;
     sdmmc_slot_config.d1 = (gpio_num_t)SDCARD_SDMMC_PIN_D1;
     sdmmc_slot_config.d2 = (gpio_num_t)SDCARD_SDMMC_PIN_D2;
     sdmmc_slot_config.d3 = (gpio_num_t)SDCARD_SDMMC_PIN_D3;
-#endif
     sdmmc_slot_config.width = 4;
 
     mount_config.format_if_mount_failed = false;
     mount_config.max_files = max_files;
     mount_config.allocation_unit_size = 16 * 1024;
-}
+    #endif // SDCARD_MODE_SDMMC
 
-/// @brief Initialize SPI-specific configuration
-static void __init_spi_config(int32_t max_files, uint32_t max_freq_khz) {
+    #ifdef SDCARD_MODE_SPI
     if (max_freq_khz > SDMMC_FREQ_52M) return;
     if (max_freq_khz != 0) {
         spi_host.max_freq_khz = max_freq_khz;
@@ -87,70 +75,35 @@ static void __init_spi_config(int32_t max_files, uint32_t max_freq_khz) {
     spi_bus_cfg.quadhd_io_num = -1;
     spi_bus_cfg.max_transfer_sz = 16384;
 
-    spi_slot_config.gpio_cs = SDCARD_SPI_PIN_CS;
+    spi_slot_config.gpio_cs = (gpio_num_t)SDCARD_SPI_PIN_CS;
     spi_slot_config.host_id = (spi_host_device_t)spi_host.slot;
 
     mount_config.format_if_mount_failed = false;
     mount_config.max_files = max_files;
     mount_config.allocation_unit_size = 16 * 1024;
+    #endif // SDCARD_MODE_SPI
 }
 
-static esp_err_t __mount_sdmmc(void) {
-    return esp_vfs_fat_sdmmc_mount(
-        SDCARD_BASE_PATH,
-        &sdmmc_host,
-        &sdmmc_slot_config,
-        &mount_config,
-        &card
-    );
-}
-
-static esp_err_t __mount_spi(void) {
-    esp_err_t ret = spi_bus_initialize((spi_host_device_t)spi_host.slot, &spi_bus_cfg, SDSPI_DEFAULT_DMA);
-    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
-        return ret;
+e_syserr_t sd_init(int32_t max_files, uint32_t max_freq_khz) {
+    __sdcard_config(max_files, max_freq_khz);
+    
+    #ifdef SDCARD_MODE_SPI
+    // Initialize SPI bus (must be done after config but before mount)
+    esp_err_t spi_ret = spi_bus_initialize((spi_host_device_t)spi_host.slot, &spi_bus_cfg, SPI_DMA_CH_AUTO);
+    if (spi_ret != ESP_OK) {
+        return e_syserr_driver_fail;
     }
-    return esp_vfs_fat_sdspi_mount(
-        SDCARD_BASE_PATH,
-        &spi_host,
-        &spi_slot_config,
-        &mount_config,
-        &card
-    );
-}
-
-static esp_err_t __mount_auto(void) {
-    // Try SDMMC first
-    esp_err_t ret = __mount_sdmmc();
-    if (ret == ESP_OK) {
-        current_sd_mode = sd_mode_sdmmc;
-        return ESP_OK;
-    }
-    // Fall back to SPI
-    current_sd_mode = sd_mode_spi;
-    return __mount_spi();
-}
-
-e_syserr_t sd_init(int32_t max_files, uint32_t max_freq_khz, sd_mode_t mode) {
-    current_sd_mode = mode;
-
-    if (mode == sd_mode_sdmmc || mode == sd_mode_auto) {
-        __init_sdmmc_config(max_files, max_freq_khz);
-    }
-    if (mode == sd_mode_spi || mode == sd_mode_auto) {
-        __init_spi_config(max_files, max_freq_khz);
-    }
-
+    #endif // SDCARD_MODE_SPI
+    
     stream_lock = xSemaphoreCreateMutex();
     if (stream_lock == NULL) return e_syserr_null;
-
     jes_err_t je;
     je = jes_register_job(SDCARD_SERVER_JOB_NAME, 2*4096, 1, sd_job, 0, 1);
     if (je != e_err_no_err) { 
         jes_throw_error(je); 
         return (e_syserr_t)je; 
     }
-    je = jes_register_job(SDCARD_STREAMER_JOB_NAME, 4*4096, 1, __sd_transfer, 1);
+    je = jes_register_and_launch_job(SDCARD_STREAMER_JOB_NAME, 4*4096, 1, __sd_transfer, 1, 1);
     if (je != e_err_no_err) { 
         jes_throw_error(je); 
         return (e_syserr_t)je; 
@@ -159,27 +112,33 @@ e_syserr_t sd_init(int32_t max_files, uint32_t max_freq_khz, sd_mode_t mode) {
 }
 
 e_syserr_t sd_init_default(void) {
-    return sd_init(SDCARD_MAX_FILES_DEFAULT, SDCARD_MAX_FREQ_BUS_DEFAULT, SDCARD_MODE);
+    return sd_init(SDCARD_MAX_FILES_DEFAULT, SDCARD_MAX_FREQ_BUS_DEFAULT);
 }
 
 e_syserr_t sd_mnt(void) {
     if (mounted) return e_syserr_none;
-
     esp_err_t ret;
-    switch (current_sd_mode) {
-        case sd_mode_sdmmc:
-            ret = __mount_sdmmc();
-            break;
-        case sd_mode_spi:
-            ret = __mount_spi();
-            break;
-        case sd_mode_auto:
-        default:
-            ret = __mount_auto();
-            break;
-    }
 
+    #ifdef SDCARD_MODE_SDMMC
+    ret = esp_vfs_fat_sdmmc_mount(
+        SDCARD_BASE_PATH,
+        &sdmmc_host,
+        &sdmmc_slot_config,
+        &mount_config,
+        &card
+    );
+    #endif // SDCARD_MODE_SDMMC
+    #ifdef SDCARD_MODE_SPI
+    ret = esp_vfs_fat_sdspi_mount(
+        SDCARD_BASE_PATH,
+        &spi_host,
+        &spi_slot_config,
+        &mount_config,
+        &card
+    );
+    #endif // SDCARD_MODE_SPI
     if (ret != ESP_OK) return e_syserr_driver_fail;
+    if (card == NULL) return e_syserr_driver_fail;
     mounted = 1;
     return e_syserr_none;
 }
@@ -285,7 +244,7 @@ e_syserr_t sd_read_txt(char* data, uint32_t len, const char* fname, uint32_t pos
     return e;
 }
 
-e_syserr_t sd_stream_in(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_w) {
+e_syserr_t sd_stream_in(void* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_w) {
     if (!mounted) return e_syserr_sdcard_unmnted;
     if (f == NULL) return e_syserr_file_generic;
     static sd_stream_descriptor_t in_stream = {0};
@@ -299,7 +258,7 @@ e_syserr_t sd_stream_in(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t
     return e_syserr_none;
 }
 
-e_syserr_t sd_stream_out(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_r) {
+e_syserr_t sd_stream_out(void* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_r) {
     if (!mounted) return e_syserr_sdcard_unmnted;
     if (f == NULL) return e_syserr_file_generic;
     static sd_stream_descriptor_t out_stream = {0};
@@ -309,7 +268,8 @@ e_syserr_t sd_stream_out(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_
     out_stream.type_in_byte = (bps/8)*nch;
     out_stream.direction = sd_stream_direction_out;
     *points_r = len; // Hack for now
-    jes_notify_job(SDCARD_STREAMER_JOB_NAME, &out_stream);
+    jes_err_t je = jes_notify_job(SDCARD_STREAMER_JOB_NAME, &out_stream);
+    if(je != e_err_no_err) return (e_syserr_t)je;
     return e_syserr_none;
 }
 
@@ -422,16 +382,16 @@ void sd_job(void* p) {
     e_syserr_t e;
     if (strcmp(arg, "mnt") == 0) {
         if ((e = sd_mnt()) != e_syserr_none) {
-            SCOPE_LOG_PJ(pj, "Unable to mount SD card!");
+            UTILS_DEBUG_PRINT_PJ(pj, "Unable to mount SD card!");
         } else {
-            SCOPE_LOG_PJ(pj, "Mounted.");
+            UTILS_DEBUG_PRINT_PJ(pj, "Mounted.");
         }
     }
     else if (strcmp(arg, "unmnt") == 0) {
         if ((e = sd_unmnt()) != e_syserr_none) {
-            SCOPE_LOG_PJ(pj, "Unable to unmount SD card!");
+            UTILS_DEBUG_PRINT_PJ(pj, "Unable to unmount SD card!");
         } else {
-            SCOPE_LOG_PJ(pj, "Unmounted.");
+            UTILS_DEBUG_PRINT_PJ(pj, "Unmounted.");
         }
     }
     else if (strcmp(arg, "ls") == 0) {
@@ -441,7 +401,7 @@ void sd_job(void* p) {
         char ret[SDCARD_LS_MAX_CHAR];
         sprintf(buf, "%s/%s\0", SDCARD_BASE_PATH, arg);
         if ((e = sd_ls(buf, ret, SDCARD_LS_MAX_CHAR)) != e_syserr_none) {
-            SCOPE_LOG_PJ(pj, "Error while listing files. (%d)", e);
+            UTILS_DEBUG_PRINT_PJ(pj, "Error while listing files. (%d)", e);
             return;
         }
         uart_unif_write(ret);
@@ -449,14 +409,14 @@ void sd_job(void* p) {
     else if (strcmp(arg, "cat") == 0) {
         arg = strtok(NULL, " ");
         if (arg == NULL) {
-            SCOPE_LOG_PJ(pj, "cat error: specify a file to read.");
+            UTILS_DEBUG_PRINT_PJ(pj, "cat error: specify a file to read.");
             return;
         }
         char buf[SDCARD_PATH_MAX_CHAR];
         char ret[SDCARD_CAT_MAX_CHAR];
         sprintf(buf, "%s/%s\0", SDCARD_BASE_PATH, arg);
         if ((e = sd_cat(buf, ret, SDCARD_CAT_MAX_CHAR)) != e_syserr_none) {
-            SCOPE_LOG_PJ(pj, "Error while reading file. (%d)", e);
+            UTILS_DEBUG_PRINT_PJ(pj, "Error while reading file. (%d)", e);
             return;
         }
         uart_unif_write(ret);
@@ -464,13 +424,13 @@ void sd_job(void* p) {
     else if (strcmp(arg, "rm") == 0) {
         arg = strtok(NULL, " ");
         if (arg == NULL) {
-            SCOPE_LOG_PJ(pj, "rm error: specify a file to delete.");
+            UTILS_DEBUG_PRINT_PJ(pj, "rm error: specify a file to delete.");
             return;
         }
         char buf[SDCARD_PATH_MAX_CHAR];
         sprintf(buf, "%s/%s\0", SDCARD_BASE_PATH, arg);
         if ((e = sd_rm(buf)) != e_syserr_none) {
-            SCOPE_LOG_PJ(pj, "Error while deleting file. (%d)", e);
+            UTILS_DEBUG_PRINT_PJ(pj, "Error while deleting file. (%d)", e);
             return;
         }
     }
@@ -478,20 +438,20 @@ void sd_job(void* p) {
         uint32_t free_kbytes = 0;
         uint32_t all_kbytes = 0;
         if (sd_get_free_kbytes(&free_kbytes, &all_kbytes) != e_syserr_none) {
-            SCOPE_LOG_PJ(pj, "Free space can't be identified.");
+            UTILS_DEBUG_PRINT_PJ(pj, "Free space can't be identified.");
             return;
         }
-        SCOPE_LOG_PJ(pj, "%d/%d kB free", free_kbytes, all_kbytes);
+        UTILS_DEBUG_PRINT_PJ(pj, "%d/%d kB free", free_kbytes, all_kbytes);
     }
     else {
-        SCOPE_LOG_PJ(pj, "Unknown SD command.");
+        UTILS_DEBUG_PRINT_PJ(pj, "Unknown SD command.");
     }
 }
 
 static inline void __sd_transfer(void* p) {
     job_struct_t* pj = (job_struct_t*)p;
     pj->role = e_role_core;
-    static audio_sample_t local_buf[AUDIO_FRAME_LEN];
+    static uint8_t local_buf[4096]; // Generic buffer for stream operations
     while (1) {
         sd_stream_descriptor_t stream = *(sd_stream_descriptor_t*)jes_wait_for_notification();
         size_t points_transferred = 0;
@@ -505,7 +465,7 @@ static inline void __sd_transfer(void* p) {
         }
         xSemaphoreGive(stream_lock);
         if (points_transferred != stream.block_len) { 
-            SCOPE_LOG_PJ(pj, "Data given: %d, transferred: %d", stream.block_len, points_transferred);
+            UTILS_DEBUG_PRINT_PJ(pj, "Data given: %d, transferred: %d", stream.block_len, points_transferred);
             jes_throw_error((jes_err_t)e_syserr_file_generic); 
         }
     }
