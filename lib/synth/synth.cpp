@@ -3,9 +3,7 @@
 #include <Arduino.h>
 #include <jescore.h>
 #include "synth.h"
-#include "uart_unif.h"
 #include "fastmath.h"
-#include "fsm.h"
 
 synth_write_t synth_write_list[SYNTH_N] = {
     synth_write_sine,
@@ -160,33 +158,28 @@ void synth_job(void* p){
     job_struct_t* pj = (job_struct_t*)p;
     
     if(arg == NULL || strcmp(arg, "play") != 0){
-        SCOPE_LOG_PJ(pj, "Usage: synth play [-f freq] [-a amp] [sine|square|saw|sweep]");
+        jes_print_pj(pj, "Usage: synth play [-f freq] [-a amp] [sine|square|saw|sweep]");
         return;
     }
     
     arg = strtok(NULL, " ");
     if(arg == NULL) {
-        // Use default
         synth_cfg_t cfg = SYNTH_CFG_DEFAULT;
         synth_init(&cfg);
-        SCOPE_LOG_PJ(pj, "Playing default synth (sine, 1000Hz, 0.2 amp)");
+        jes_print_pj(pj, "Playing default synth (sine, 1000Hz, 0.2 amp)");
     } else {
-        // Parse args starting with type
         char synth_args[64];
         sprintf(synth_args, "%s %s", arg, strtok(NULL, "")); // Get rest of args
         synth_cfg_t cfg = SYNTH_CFG_DEFAULT;
         e_syserr_t e = synth_job_parse_args(synth_args, &cfg);
         if(e != e_syserr_none) {
-            SCOPE_LOG_PJ(pj, "Error parsing synth args: %d", e);
+            jes_print_pj(pj, "Error parsing synth args: %d", e);
             return;
         }
         synth_init(&cfg);
-        SCOPE_LOG_PJ(pj, "Playing synth: %s, freq=%d, amp=%.2f", 
+        jes_print_pj(pj, "Playing synth: %s, freq=%d, amp=%.2f", 
                      synth_names[cfg.type], cfg.freq, cfg.amp);
     }
-    
-    // The actual synthesis would be triggered by the FSM
-    // This job just configures the synth
 }
 
 #endif // FRX_ENABLE_MODULE_SYNTH

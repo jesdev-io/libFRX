@@ -1,15 +1,9 @@
 #include <Arduino.h>
 #include <jescore.h>
+#include <unity.h>
 #include "synth.h"
 #include "audio.h"
 #include "syserr.h"
-
-#ifdef UNIT_TEST
-#include <unity.h>
-#else
-#define TEST_ASSERT_EQUAL(ex, ac)
-#define RUN_TEST(test) test()
-#endif
 
 void test_synth_init(void) {
     synth_cfg_t cfg = SYNTH_CFG_DEFAULT;
@@ -37,19 +31,13 @@ void test_synth_init_invalid_freq(void) {
 }
 
 void setup() {
-    #ifdef UNIT_TEST
     delay(2000);
     UNITY_BEGIN();
-    #endif
-    
     RUN_TEST(test_synth_init);
     RUN_TEST(test_synth_init_default);
     RUN_TEST(test_synth_init_invalid_amp);
     RUN_TEST(test_synth_init_invalid_freq);
-
-    #ifdef UNIT_TEST
     UNITY_END();
-    #endif
 }
 
 void loop() {

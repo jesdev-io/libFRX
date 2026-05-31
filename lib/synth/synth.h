@@ -3,6 +3,10 @@
 
 #ifdef FRX_ENABLE_MODULE_SYNTH
 
+#ifndef FRX_ENABLE_MODULE_AUDIO
+#error "WAV module requires AUDIO module to be enabled. Define FRX_ENABLE_MODULE_AUDIO."
+#endif
+
 #include <inttypes.h>
 #include "audio.h"
 
