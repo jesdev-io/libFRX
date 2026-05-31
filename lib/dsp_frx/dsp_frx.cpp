@@ -2,22 +2,17 @@
 
 #include "dsp_frx.h"
 
-inline float dsp_frx_sin_bhaskara_I(float x) {
-    x = fmodf(x + M_PI, 2.0f * M_PI) - M_PI; // Wrap to [-π, π]
+float dsp_frx_sin_bhaskara_I(float x) {
+    // https://en.wikipedia.org/wiki/Bh%C4%81skara_I%27s_sine_approximation_formula
+    x = fmodf(x, 2.0f * M_PI); // Wrap to [-π, π]
     float x_pi_minus_x = x * (M_PI - x);
-    return (4.0f * x_pi_minus_x) / (M_PI * M_PI - x_pi_minus_x);
+    return (16.0f * x_pi_minus_x) / (5 * M_PI * M_PI - 4 * x_pi_minus_x);
 }
 
-static inline audio_val_t dsp_frx_sample_cleanup(audio_sample_t data, uint8_t nch){
-    static audio_val_t dc_values = {0};
-    audio_val_t scaled;
-    for(uint8_t i = 0; i < nch; i++){
-        data.ch[i] >>= 8;
-        scaled.ch[i] = (float)data.ch[i] * DSP_FRX_INT24_SCALE;
-        dc_values.ch[i] += DSP_FRX_DC_FILTER_ALPHA * (scaled.ch[i] - dc_values.ch[i]);
-        scaled.ch[i] -= dc_values.ch[i];
-    }
-    return scaled;
+float dsp_frx_cos_bhaskara_I(float x) {
+    // https://en.wikipedia.org/wiki/Bh%C4%81skara_I%27s_sine_approximation_formula
+    x = fmodf(x, 2.0f * M_PI); // Wrap to [-π, π]
+    return 1 - (5*DSP_FRX_SQUARE(x)/(M_PI * M_PI + DSP_FRX_SQUARE(x)));
 }
 
 audio_val_t dsp_frx_samples_to_msqr_32b(audio_sample_t* data, uint32_t len, uint8_t nch){
@@ -76,6 +71,18 @@ audio_val_t dsp_frx_msqr_rolling_avg(audio_val_t msqr, uint8_t nch){
         msqr_avg.ch[i] = running_sum.ch[i] / (float)samples_count;
     }
     return msqr_avg;
+}
+
+audio_val_t dsp_frx_sample_cleanup(audio_sample_t data, uint8_t nch){
+    static audio_val_t dc_values = {0};
+    audio_val_t scaled;
+    for(uint8_t i = 0; i < nch; i++){
+        data.ch[i] >>= 8;
+        scaled.ch[i] = (float)data.ch[i] * DSP_FRX_INT24_SCALE;
+        dc_values.ch[i] += DSP_FRX_DC_FILTER_ALPHA * (scaled.ch[i] - dc_values.ch[i]);
+        scaled.ch[i] -= dc_values.ch[i];
+    }
+    return scaled;
 }
 
 #endif // FRX_ENABLE_MODULE_DSP_FRX
