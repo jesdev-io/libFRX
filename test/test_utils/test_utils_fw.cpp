@@ -1,16 +1,9 @@
 #include <Arduino.h>
 #include <jescore.h>
+#include <unity.h>
 #include "utils.h"
 #include "syserr.h"
 #include <string.h>
-
-#ifdef UNIT_TEST
-#include <unity.h>
-#else
-#define TEST_ASSERT_EQUAL(ex, ac)
-#define TEST_ASSERT_EQUAL_STRING(ex, ac) (strcmp(ex, ac) == 0)
-#define RUN_TEST(test) test()
-#endif
 
 void test_uint_to_4digit_str(void) {
     char buf[5];
@@ -58,20 +51,14 @@ void test_str_to_4digit_uint_invalid(void) {
 }
 
 void setup() {
-    #ifdef UNIT_TEST
     delay(2000);
     UNITY_BEGIN();
-    #endif
-    
     RUN_TEST(test_uint_to_4digit_str);
     RUN_TEST(test_uint_to_4digit_str_too_large);
     RUN_TEST(test_uint_to_4digit_str_null_buf);
     RUN_TEST(test_str_to_4digit_uint);
     RUN_TEST(test_str_to_4digit_uint_invalid);
-
-    #ifdef UNIT_TEST
     UNITY_END();
-    #endif
 }
 
 void loop() {

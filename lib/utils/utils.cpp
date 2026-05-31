@@ -22,7 +22,6 @@ char *strremove(char *str, const char *sub) {
 e_syserr_t uint_to_4digit_str(uint16_t num, char* buf) {
     if(num >= 10000) return e_syserr_param;
     if(buf == NULL) return e_syserr_null;
-    if(strlen(buf) < 4) return e_syserr_oom;
     snprintf(buf, 5, "%04d", num);
     return e_syserr_none;
 }
