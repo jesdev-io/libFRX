@@ -1,8 +1,6 @@
 #ifndef _SYSERR_H_
 #define _SYSERR_H_
 
-#ifdef FRX_ENABLE_MODULE_SYSERR
-
 #include <jes_err.h>
 
 // Configuration macros - can be overridden by consuming projects
@@ -42,5 +40,4 @@ typedef enum{
     e_syserr_audio_dead     // Audio loop died during runtime.    
 }e_syserr_t;
 
-#endif // FRX_ENABLE_MODULE_SYSERR
 #endif // _SYSERR_H_
