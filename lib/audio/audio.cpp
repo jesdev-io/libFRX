@@ -7,7 +7,7 @@
 
 static audio_sample_t audio_buf[AUDIO_FRAME_LEN*2];
 QueueHandle_t audio_evt_queue_in;
-static uint32_t sr = 0;
+static uint32_t _sr = 0;
 
 e_syserr_t audio_init(uint32_t sr, uint8_t bclk, uint8_t ws, uint8_t data_rx, uint8_t data_tx){
 
@@ -63,7 +63,7 @@ e_syserr_t audio_init(uint32_t sr, uint8_t bclk, uint8_t ws, uint8_t data_rx, ui
     if (e != ESP_OK) { 
         return e_syserr_driver_fail;
     }
-    sr = sr;
+    _sr = sr;
     return e_syserr_none;
 }
 
@@ -84,7 +84,6 @@ void audio_sampler(void* p){
         static bool tx_occ = false;
         static bool rx_occ = false;
         if (xQueueReceive(audio_evt_queue_in, &evt, portMAX_DELAY) == pdPASS){
-            jes_print_pj(pj, "Audio!\n\r");
             if(evt.type == (i2s_event_type_t)I2S_EVENT_RESTART){
                 jes_delay_job_ms(AUDIO_I2S_RESTART_MS);
                 jes_print_pj(pj, "Audio was restarted!");
@@ -149,7 +148,7 @@ e_syserr_t audio_set_callback(audio_cb_t cb){
 }
 
 uint32_t audio_get_sr(void){
-    return sr;
+    return _sr;
 }
 
 #endif // FRX_ENABLE_MODULE_AUDIO
