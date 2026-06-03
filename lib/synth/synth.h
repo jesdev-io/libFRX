@@ -4,7 +4,7 @@
 #ifdef FRX_ENABLE_MODULE_SYNTH
 
 #ifndef FRX_ENABLE_MODULE_AUDIO
-#error "WAV module requires AUDIO module to be enabled. Define FRX_ENABLE_MODULE_AUDIO."
+#error "Synth module requires AUDIO module to be enabled. Define FRX_ENABLE_MODULE_AUDIO."
 #endif
 
 #include <inttypes.h>
@@ -53,13 +53,7 @@ typedef struct synth_cfg_t{
 /// @brief Concrete synth type computation function signature.
 typedef void (*synth_write_t)(audio_sample_t* data, uint32_t n_samples);
 
-#define SYNTH_CFG_DEFAULT ((synth_cfg_t){.freq = 1000,\
-                                         .amp = 0.2,\
-                                         .type = synth_sine,\
-                                         .fs = 48000,\
-                                         ._fstart = 20,\
-                                         ._fstop = 20000,\
-                                         .ul_phase = 0})
+#define SYNTH_CFG_DEFAULT ((synth_cfg_t){.freq = 1000, .amp = 0.2, .type = synth_sine, .fs = 0, ._fstart = 20, ._fstop = 20000, .ul_phase = 0})
 
 /// @brief Set a given synth config to the current synth.
 /// @param cfg Reference to synth config struct.

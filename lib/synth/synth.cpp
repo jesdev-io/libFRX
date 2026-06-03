@@ -35,10 +35,12 @@ int32_t sweep_data[SYNTH_SWEEP_LEN] = {
 
 e_syserr_t synth_init(synth_cfg_t* cfg){
     if(cfg->amp > 1.0 || cfg->amp <= 0.0){ return e_syserr_param; }
+    uint32_t audio_sr = audio_get_sr();
+    if(audio_sr == 0) { return e_syserr_uninitialized; }
+    if(cfg->freq >= (audio_sr/2)) { return e_syserr_param; } // Nyquist
     synth_cur.amp = cfg->amp;
-    if(cfg->freq >= (cfg->fs/2)) { return e_syserr_param; } // Nyquist
     synth_cur.freq = cfg->freq;
-    synth_cur.fs = cfg->fs;
+    synth_cur.fs = audio_sr;
     if(cfg->type >= SYNTH_N) { return e_syserr_param; }
     synth_cur.type = cfg->type;
     synth_cur._fstart = cfg->_fstart;
@@ -49,7 +51,9 @@ e_syserr_t synth_init(synth_cfg_t* cfg){
 }
 
 e_syserr_t synth_init_default(void){
+    if(audio_get_sr() == 0) { return e_syserr_uninitialized; }
     synth_cfg_t scfg = SYNTH_CFG_DEFAULT;
+    scfg.fs = audio_get_sr();
     return synth_init(&scfg);
 }
 
