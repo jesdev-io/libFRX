@@ -12,10 +12,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "sdcard.h"
+#include "sdcard_jccl.h"
 #include "utils.h"
 
-/// @brief 
-/// @param p 
+/// @brief Internal data streaming server.
+/// @param p jescore job pointer.
 static inline void __sd_transfer(void* p);
 
 // Common state
@@ -98,7 +99,7 @@ e_syserr_t sd_init(int32_t max_files, uint32_t max_freq_khz) {
     stream_lock = xSemaphoreCreateMutex();
     if (stream_lock == NULL) return e_syserr_null;
     jes_err_t je;
-    je = jes_register_job(SDCARD_SERVER_JOB_NAME, 2*4096, 1, sd_job, 0, 1);
+    je = jes_register_job(SDCARD_JOB_NAME, 2*4096, 1, sd_job, 0, 1);
     if (je != e_err_no_err) { 
         jes_throw_error(je); 
         return (e_syserr_t)je; 
@@ -298,38 +299,50 @@ void sd_stream_close(FILE* f) {
     xSemaphoreGive(stream_lock);
 }
 
-e_syserr_t sd_ls(const char *dirname, char* pret, uint16_t len) {
+e_syserr_t sd_ls(const char *dirname, char* pret, uint16_t n_entries, uint16_t len) {
     if (!mounted) return e_syserr_sdcard_unmnted;
+    if (!dirname) return e_syserr_param;
+    if (!pret) return e_syserr_param;
+    if(len < SDCARD_LS_MIN_CHAR) return e_syserr_param;
     DIR *dir = opendir(dirname);
     if (!dir) {
         return e_syserr_file_generic;
     }
     struct dirent *entry;
-    uint16_t i = 0;
-    while ((entry = readdir(dir)) != NULL) {
+    uint16_t j = 0;
+    int16_t len_safe = UTILS_CLIP_MAX(INT16_MAX, len);
+    int16_t chars_left = len_safe;
+    const char cont[] = "...";
+    uint16_t offset = 0;
+    while ((entry = readdir(dir)) != NULL && j < n_entries) {
         char* pr = entry->d_name;
-        while (*pr != '\0') {
-            if (i == len - 1) {
-                closedir(dir);
-                return e_syserr_oom;
+        uint8_t pr_len = strlen(pr);
+        pr_len = UTILS_CLIP_MAX(SDCARD_LS_ENTRY_MAX_LEN, pr_len);
+        if(!strncmp(pr, "System Volume Information", pr_len)) continue;
+        if(!strncmp(pr, ".Trash-1000", pr_len)) continue;
+        if (chars_left < pr_len + 1 + sizeof(cont)) {
+            if (chars_left >= sizeof(cont)) {
+                strncpy(&pret[offset], cont, sizeof(cont));
             }
-            pret[i++] = *pr++;
+            break;
         }
-        if (i == len - 1) {
-            closedir(dir);
-            return e_syserr_oom;
+        snprintf(&pret[offset], chars_left, "%.*s" SDCARD_LS_ENTRY_SEPARATOR, pr_len, pr);
+        offset += pr_len + 1;
+        chars_left -= pr_len + 1;
+        j++;
+        if (j == n_entries) {
+            // Check if there are more files to indicate with "..."
+            struct dirent *next_entry = readdir(dir);
+            if (next_entry != NULL) {
+                // There are more files, add "..." if space allows
+                if (chars_left >= sizeof(cont)) {
+                    strncpy(&pret[offset], cont, sizeof(cont));
+                }
+            }
+            break;
         }
-        pret[i++] = '\n';
-    }
-    if (i < len) {
-        pret[i] = '\0';
-    } else {
-        closedir(dir);
-        return e_syserr_oom;
     }
     closedir(dir);
-    strremove(pret, "System Volume Information\n");
-    strremove(pret, ".Trash-1000\n");
     return e_syserr_none;
 }
 
@@ -341,6 +354,14 @@ e_syserr_t sd_cat(const char *fname, char* pret, uint16_t len) {
         return e_syserr_none;
     }
     return e;
+}
+
+e_syserr_t sd_mk(const char* fname) {
+    if (!mounted) return e_syserr_sdcard_unmnted;
+    if (sd_file_exists(fname)) {
+        return e_syserr_file_duplicate;
+    }
+    return sd_create_file(fname);
 }
 
 e_syserr_t sd_rm(const char* fname) {
@@ -380,80 +401,111 @@ void sd_job(void* p) {
     char* arg = strtok(args, " ");
     job_struct_t* pj = (job_struct_t*)p;
     e_syserr_t e;
-    if (strcmp(arg, "mnt") == 0) {
+    
+    if (jes_job_is_arg(arg, SDCARD_CMD_MOUNT)) {
         if ((e = sd_mnt()) != e_syserr_none) {
-            UTILS_DEBUG_PRINT_PJ(pj, "Unable to mount SD card!");
+            jes_print_pj(pj, SDCARD_MSG_MOUNT_FAIL);
         } else {
-            UTILS_DEBUG_PRINT_PJ(pj, "Mounted.");
+            jes_print_pj(pj, SDCARD_MSG_MOUNTED);
         }
     }
-    else if (strcmp(arg, "unmnt") == 0) {
+    else if (jes_job_is_arg(arg, SDCARD_CMD_UNMOUNT)) {
         if ((e = sd_unmnt()) != e_syserr_none) {
-            UTILS_DEBUG_PRINT_PJ(pj, "Unable to unmount SD card!");
+            jes_print_pj(pj, SDCARD_MSG_UNMOUNT_FAIL);
         } else {
-            UTILS_DEBUG_PRINT_PJ(pj, "Unmounted.");
+            jes_print_pj(pj, SDCARD_MSG_UNMOUNTED);
         }
     }
-    else if (strcmp(arg, "ls") == 0) {
+    else if (jes_job_is_arg(arg, SDCARD_CMD_HELP)) {
+        jes_print_pj(pj, SDCARD_CMDS);
+    }
+    else if (jes_job_is_arg(arg, SDCARD_CMD_LIST)) {
         arg = strtok(NULL, " ");
         if (arg == NULL) { arg = (char*)"\0"; }
         char buf[SDCARD_PATH_MAX_CHAR];
         char ret[SDCARD_LS_MAX_CHAR];
         sprintf(buf, "%s/%s\0", SDCARD_BASE_PATH, arg);
-        if ((e = sd_ls(buf, ret, SDCARD_LS_MAX_CHAR)) != e_syserr_none) {
-            UTILS_DEBUG_PRINT_PJ(pj, "Error while listing files. (%d)", e);
+        if ((e = sd_ls(buf, ret, SDCARD_LS_MAX_ENTRIES, SDCARD_LS_MAX_CHAR)) != e_syserr_none) {
+            jes_print_pj(pj, SDCARD_MSG_LS_ERROR_errnum, e);
             return;
         }
-        uart_unif_write(ret);
+        char* ent = strtok(ret, SDCARD_LS_ENTRY_SEPARATOR);
+        while(ent){
+            jes_print_pj(pj, "%s\n", ent);
+            ent = strtok(NULL, SDCARD_LS_ENTRY_SEPARATOR);
+        }
     }
-    else if (strcmp(arg, "cat") == 0) {
+    else if (jes_job_is_arg(arg, SDCARD_CMD_READ)) {
         arg = strtok(NULL, " ");
         if (arg == NULL) {
-            UTILS_DEBUG_PRINT_PJ(pj, "cat error: specify a file to read.");
+            jes_print_pj(pj, SDCARD_MSG_CAT_ERROR_USAGE);
             return;
         }
         char buf[SDCARD_PATH_MAX_CHAR];
         char ret[SDCARD_CAT_MAX_CHAR];
         sprintf(buf, "%s/%s\0", SDCARD_BASE_PATH, arg);
         if ((e = sd_cat(buf, ret, SDCARD_CAT_MAX_CHAR)) != e_syserr_none) {
-            UTILS_DEBUG_PRINT_PJ(pj, "Error while reading file. (%d)", e);
+            jes_print_pj(pj, SDCARD_MSG_CAT_ERROR_errnum, e);
             return;
         }
-        uart_unif_write(ret);
+        jes_print_pj(pj, ret);
     }
-    else if (strcmp(arg, "rm") == 0) {
+    else if (jes_job_is_arg(arg, SDCARD_CMD_CREATE)) {
         arg = strtok(NULL, " ");
         if (arg == NULL) {
-            UTILS_DEBUG_PRINT_PJ(pj, "rm error: specify a file to delete.");
+            jes_print_pj(pj, SDCARD_MSG_MK_ERROR_USAGE);
+            return;
+        }
+        char buf[SDCARD_PATH_MAX_CHAR];
+        sprintf(buf, "%s/%s\0", SDCARD_BASE_PATH, arg);
+        if ((e = sd_mk(buf)) != e_syserr_none) {
+            jes_print_pj(pj, SDCARD_MSG_MK_ERROR_errnum, e);
+            return;
+        }
+    }
+    else if (jes_job_is_arg(arg, SDCARD_CMD_REMOVE)) {
+        arg = strtok(NULL, " ");
+        if (arg == NULL) {
+            jes_print_pj(pj, SDCARD_MSG_RM_ERROR_USAGE);
             return;
         }
         char buf[SDCARD_PATH_MAX_CHAR];
         sprintf(buf, "%s/%s\0", SDCARD_BASE_PATH, arg);
         if ((e = sd_rm(buf)) != e_syserr_none) {
-            UTILS_DEBUG_PRINT_PJ(pj, "Error while deleting file. (%d)", e);
+            jes_print_pj(pj, SDCARD_MSG_RM_ERROR_errnum, e);
             return;
         }
     }
-    else if (strcmp(arg, "mem") == 0) {
+    else if (jes_job_is_arg(arg, SDCARD_CMD_MEMORY)) {
         uint32_t free_kbytes = 0;
         uint32_t all_kbytes = 0;
-        if (sd_get_free_kbytes(&free_kbytes, &all_kbytes) != e_syserr_none) {
-            UTILS_DEBUG_PRINT_PJ(pj, "Free space can't be identified.");
+        e_syserr_t e;
+        if ((e = sd_get_free_kbytes(&free_kbytes, &all_kbytes)) != e_syserr_none) {
+            jes_print_pj(pj, SDCARD_MSG_MEM_ERROR_errnum, e);
             return;
         }
-        UTILS_DEBUG_PRINT_PJ(pj, "%d/%d kB free", free_kbytes, all_kbytes);
+        jes_print_pj(pj, SDCARD_MSG_MEM_FORMAT_free_tot, free_kbytes, all_kbytes);
     }
     else {
-        UTILS_DEBUG_PRINT_PJ(pj, "Unknown SD command.");
+        jes_print_pj(pj, SDCARD_MSG_UNKNOWN_CMD "\n");
+        jes_print_pj(pj, SDCARD_CMDS);
     }
 }
 
 static inline void __sd_transfer(void* p) {
     job_struct_t* pj = (job_struct_t*)p;
     pj->role = e_role_core;
-    static uint8_t local_buf[4096]; // Generic buffer for stream operations
+    /* A local buffer is required because the file operations (function scopes
+    in fread() and fwrite()) seem to take too long for being called as blocking
+    functions when the data transfer occurs via SPI. DMA is fast, but the
+    abstraction around it isn't, which is why this non-blocking stream server
+    exists. It requires a local buffer. This means that the notification stack
+    + server loop + memcpy is "faster" (in a blockwise task context) than just 
+    calling fread()/fwrite() in the audio callback. */
+    static uint8_t local_buf[SDCARD_SD_STREAM_POOL_SIZE];
     while (1) {
         sd_stream_descriptor_t stream = *(sd_stream_descriptor_t*)jes_wait_for_notification();
+        __job_set_timing_begin(__get_systime_ms(), pj);
         size_t points_transferred = 0;
         memcpy(local_buf, stream.data, stream.type_in_byte * stream.block_len);
         xSemaphoreTake(stream_lock, portMAX_DELAY);
@@ -468,6 +520,7 @@ static inline void __sd_transfer(void* p) {
             UTILS_DEBUG_PRINT_PJ(pj, "Data given: %d, transferred: %d", stream.block_len, points_transferred);
             jes_throw_error((jes_err_t)e_syserr_file_generic); 
         }
+        __job_set_timing_end(__get_systime_ms(), pj);
     }
 }
 

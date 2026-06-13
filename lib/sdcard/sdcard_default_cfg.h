@@ -63,14 +63,6 @@
 #define SDCARD_PAGE_SIZE_BYTE       512
 #endif
 
-#ifndef SDCARD_JOB_NAME
-#define SDCARD_JOB_NAME             "sdcard"
-#endif
-
-#ifndef SDCARD_STREAMER_JOB_NAME
-#define SDCARD_STREAMER_JOB_NAME    "sdstrm"
-#endif
-
 #ifndef SDCARD_MAX_FILES_DEFAULT
 #define SDCARD_MAX_FILES_DEFAULT    5
 #endif

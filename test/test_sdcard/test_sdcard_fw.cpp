@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "sdcard.h"
+#include "sdcard_jccl.h"
 #include "utils.h"
 
 #define SD_TEST_MAX_FILES           5
@@ -12,7 +13,7 @@
 #define SD_TEST_FNAME_TXT           "unit_test.txt"
 #define SD_TEST_FNAME_BIN           "unit_test.bin"
 #define SD_TEST_TEXT_BUF_LEN        24
-#define SD_TEST_BIN_BUF_INT32_LEN   4 // 16 byte
+#define SD_TEST_BIN_BUF_INT32_LEN   4
 #define SD_TEST_MSG_TXT             "Written by unit test.\n\r"
 #define SD_TEST_MSG_TXT_APX         "Appended by unit test\n\r"
 
@@ -158,7 +159,7 @@ void test_sd_append(void){
     TEST_ASSERT_EQUAL_MEMORY(combined_bin, bin_comp, SD_TEST_BIN_BUF_INT32_LEN * 2 * sizeof(int32_t));
 }
 
-FILE* f = NULL; // out of scope f-pointer (must be properly managed between tests)
+FILE* f = NULL;
 void test_sd_stream_open(void){
     f = sd_stream_open((char*)SDCARD_BASE_PATH "/" SD_TEST_FNAME_BIN, "rb");
     TEST_ASSERT_NOT_NULL(f);
@@ -176,24 +177,21 @@ void test_sd_stream_open(void){
     f = NULL;
 }
 
-// Use generic data instead of audio-specific types
+// pseudo-audio-like data
 int32_t data_chunk_1[2] = {100, 200};
 int32_t data_chunk_2[2] = {-100, -200};
 int32_t data_chunk[4]; // 2 samples * 2 channels
 void test_sd_stream_write(void){
-    // Ensure any previously opened file is closed
     if (f != NULL) {
         sd_stream_close(f);
         f = NULL;
     }
-    
     f = sd_stream_write_open((char*)SDCARD_BASE_PATH "/" SD_TEST_FNAME_BIN);
     TEST_ASSERT_NOT_NULL(f);
     e_syserr_t e;
-    // Prepare generic data (2 samples, 2 channels each)
     for(uint8_t i = 0; i < 2; i++){
-        data_chunk[i*2] = data_chunk_1[i];    // Channel 1
-        data_chunk[i*2+1] = data_chunk_2[i];  // Channel 2
+        data_chunk[i*2] = data_chunk_1[i];
+        data_chunk[i*2+1] = data_chunk_2[i];
     }
     for(uint8_t i = 0; i < 2; i++){
         uint32_t pw = 0;
@@ -202,11 +200,11 @@ void test_sd_stream_write(void){
         TEST_ASSERT_EQUAL(2, pw);
     }
     sd_stream_close(f);
-    f = NULL; // Explicitly set to NULL after closing
+    f = NULL;
+    TEST_ASSERT_EQUAL(e_err_no_err, jes_error_get(SDCARD_STREAMER_JOB_NAME));
 }
 
 void test_sd_stream_read(void){
-    // Ensure any previously opened file is closed
     if (f != NULL) {
         sd_stream_close(f);
         f = NULL;
@@ -214,7 +212,7 @@ void test_sd_stream_read(void){
     
     f = sd_stream_read_open((char*)SDCARD_BASE_PATH "/" SD_TEST_FNAME_BIN);
     TEST_ASSERT_NOT_NULL(f);
-    int32_t data[8]; // 2 samples * 2 channels * 2 reads
+    int32_t data[8];
     e_syserr_t e;
     for(uint8_t i = 0; i < 2; i++){
         uint32_t pr = 0;
@@ -226,16 +224,16 @@ void test_sd_stream_read(void){
         }
     }
     sd_stream_close(f);
-    f = NULL; // Explicitly set to NULL after closing
+    f = NULL;
 }
 
 void test_sd_ls(){
     char content[SDCARD_LS_MAX_CHAR] = {0};
     e_syserr_t e = sd_ls((char*)SDCARD_BASE_PATH,
                           content,
+                          2,
                           SDCARD_LS_MAX_CHAR);
     TEST_ASSERT_EQUAL(e_syserr_none, e);
-    strremove(content, "fr2_rec_0000.wav\nfr2_rec_0001.wav\n"); // created in rec state UT
     TEST_ASSERT_EQUAL_STRING(SD_TEST_FNAME_TXT "\n" SD_TEST_FNAME_BIN "\n", content);
 }
 
@@ -299,9 +297,9 @@ void test_cleanup(){
     char abspath[64] = {0};
     e_syserr_t e = sd_ls((char*)SDCARD_BASE_PATH,
                           content,
+                          10,
                           SDCARD_LS_MAX_CHAR);
     TEST_ASSERT_EQUAL(e_syserr_none, e);
-    // strremove(content, "fr2_rec_0000.wav\nfr2_rec_0001.wav\n"); // created in rec state UT)
     char* fname = strtok(content, "\n");
     while(fname){
         sprintf(abspath, "%s%s", SDCARD_BASE_PATH "/", fname);

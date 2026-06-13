@@ -1,18 +1,4 @@
 /// @file sdcard.h
-/// @brief
-/*
-Combined abstraction for ESP32-SDMMC/SPI driver code and file-IO.
-Provides functionalities to mount, unmount, create, delete,
-write to, read from, append to *files* on the SD card.
-
-Additionally, a jescore compatible SD card job can be invoked
-by registering the function `sd_job` as a job.
-
-Supports both SPI and SDMMC modes. Mode is selected via sd_mode_t parameter
-in sd_init() or via SDCARD_MODE macro.
-
-NOTE: Projects MUST define pin macros in platformio.ini (see PIN_DEFS.md)
-*/
 /// @author jake-is-ESD-protected. jesdev.io
 
 #ifndef _SDCARD_H_
@@ -20,101 +6,10 @@ NOTE: Projects MUST define pin macros in platformio.ini (see PIN_DEFS.md)
 
 #ifdef FRX_ENABLE_MODULE_SDCARD
 
+#include "sdcard_default_cfg.h"
 #include "esp_err.h"
 #include "syserr.h"
-#include "audio.h"
 #include "sdmmc_cmd.h"
-
-// Configuration macros - can be overridden by consuming projects
-// See PIN_DEFS.md for complete list of required macros
-
-#ifndef SDCARD_BASE_PATH
-#define SDCARD_BASE_PATH            "/sdcard"
-#endif
-
-#ifndef SDCARD_PAGE_SIZE_BYTE
-#define SDCARD_PAGE_SIZE_BYTE       512
-#endif
-
-#ifndef SDCARD_SERVER_JOB_NAME
-#define SDCARD_SERVER_JOB_NAME      "sdcard"
-#endif
-
-#ifndef SDCARD_STREAMER_JOB_NAME
-#define SDCARD_STREAMER_JOB_NAME    "sdstrm"
-#endif
-
-#ifndef SDCARD_MAX_FILES_DEFAULT
-#define SDCARD_MAX_FILES_DEFAULT    5
-#endif
-
-#ifndef SDCARD_MAX_FREQ_BUS_DEFAULT
-#define SDCARD_MAX_FREQ_BUS_DEFAULT SDMMC_FREQ_DEFAULT
-#endif
-
-#if !defined(SDCARD_MODE_SPI) && !defined(SDCARD_MODE_SDMMC)
-#error "SDCARD_MODE must either be sd_mode_sdmmc or sd_mode_spi!"
-#endif
-
-// SPI pin configuration - REQUIRED when SDCARD_MODE_SPI is defined.
-// Projects MUST define these in platformio.ini (see PIN_DEFS.md)
-#ifdef SDCARD_MODE_SPI
-#ifndef SDCARD_SPI_PIN_CS
-#error "SDCARD_SPI_PIN_CS must be defined in platformio.ini for SPI mode (see PIN_DEFS.md)"
-#endif
-
-#ifndef SDCARD_SPI_PIN_MOSI
-#error "SDCARD_SPI_PIN_MOSI must be defined in platformio.ini for SPI mode (see PIN_DEFS.md)"
-#endif
-
-#ifndef SDCARD_SPI_PIN_MISO
-#error "SDCARD_SPI_PIN_MISO must be defined in platformio.ini for SPI mode (see PIN_DEFS.md)"
-#endif
-
-#ifndef SDCARD_SPI_PIN_SCK
-#error "SDCARD_SPI_PIN_SCK must be defined in platformio.ini for SPI mode (see PIN_DEFS.md)"
-#endif
-#endif // SDCARD_MODE_SPI
-
-// SDMMC pin configuration - REQUIRED when SDCARD_MODE_SDMMC is defined.
-// Projects MUST define these in platformio.ini (see PIN_DEFS.md)
-#ifdef SDCARD_MODE_SDMMC
-#ifndef SDCARD_SDMMC_PIN_CLK
-#error "SDCARD_SDMMC_PIN_CLK must be defined in platformio.ini for SDMMC mode (see PIN_DEFS.md)"
-#endif
-
-#ifndef SDCARD_SDMMC_PIN_CMD
-#error "SDCARD_SDMMC_PIN_CMD must be defined in platformio.ini for SDMMC mode (see PIN_DEFS.md)"
-#endif
-
-#ifndef SDCARD_SDMMC_PIN_D0
-#error "SDCARD_SDMMC_PIN_D0 must be defined in platformio.ini for SDMMC mode (see PIN_DEFS.md)"
-#endif
-
-#ifndef SDCARD_SDMMC_PIN_D1
-#error "SDCARD_SDMMC_PIN_D1 must be defined in platformio.ini for SDMMC mode (see PIN_DEFS.md)"
-#endif
-
-#ifndef SDCARD_SDMMC_PIN_D2
-#error "SDCARD_SDMMC_PIN_D2 must be defined in platformio.ini for SDMMC mode (see PIN_DEFS.md)"
-#endif
-
-#ifndef SDCARD_SDMMC_PIN_D3
-#error "SDCARD_SDMMC_PIN_D3 must be defined in platformio.ini for SDMMC mode (see PIN_DEFS.md)"
-#endif
-#endif // SDCARD_MODE_SDMMC
-
-#ifndef SDCARD_LS_MAX_CHAR
-#define SDCARD_LS_MAX_CHAR          256
-#endif
-
-#ifndef SDCARD_CAT_MAX_CHAR
-#define SDCARD_CAT_MAX_CHAR         256
-#endif
-
-#ifndef SDCARD_PATH_MAX_CHAR
-#define SDCARD_PATH_MAX_CHAR        64
-#endif
 
 typedef enum{
     sd_stream_direction_in,
@@ -278,18 +173,24 @@ void sd_stream_close(FILE* f);
 /// @brief List all files of a folder.
 /// @param dirname Path to directory which contains entries to be listed.
 /// @param pret Pointer to empty char array.
+/// @param n_entries Number of file names to list at once.
 /// @param len Length of char array including the trailing "\0".
 /// @return Error code.
 /// @note Single entries are delimited with a newlines.
-e_syserr_t sd_ls(const char *dirname, char* pret, uint16_t len);
+e_syserr_t sd_ls(const char *dirname, char* pret, uint16_t n_entries, uint16_t len);
 
-/// @brief List content of a file.
+/// @brief List text content of a file.
 /// @param fname Name of the file. Has to exist.
 /// @param pret Pointer to empty char array.
 /// @param len Length of char array including the trailing "\0".
 /// @return Error code.
 /// @note If the buffer is not large enough for all of the content in the file, only the initial values in the buffer will be shown.
 e_syserr_t sd_cat(const char *fname, char* pret, uint16_t len);
+
+/// @brief Create an empty file.
+/// @param fname Name of the file.
+/// @return Error code.
+e_syserr_t sd_mk(const char* fname);
 
 /// @brief Remove a file.
 /// @param fname Path to file.
