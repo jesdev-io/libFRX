@@ -22,10 +22,6 @@ unity/
 doc/
 hw/
 
-# Source (keep in lib/ and shared/)
-src/
-include/
-
 # OS
 .DS_Store
 Thumbs.db
