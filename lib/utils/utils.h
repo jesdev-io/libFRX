@@ -14,6 +14,9 @@
 #define UTILS_DEBUG_PRINT_PJ(pj, format, ...)
 #endif
 
+#define UTILS_CLIP_MAX(max, val) val > max ? max : val
+#define UTILS_CLIP_MIN(min, val) val < min ? min : val
+
 /// @brief Remove all occurrences of a substring from a string.
 /// @param str The string to modify (in-place).
 /// @param sub The substring to remove.
