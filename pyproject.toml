@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "libFRX"
+version = "0.1.0"
+description = "A modular shared library for FRX ecosystem devices"
+authors = [
+    { name = "jake-is-ESD-protected", email = "jake@jesdev.io" }
+]
+dependencies = [
+    "jescorecli @ git+https://github.com/jesdev-io/jescorecli.git",
+    "pytest"
+]
+keywords = ["FRX", "libFRX", "embedded", "ESP32", "jescore"]
+requires-python = ">=3.9"
+
+[project.urls]
+"Homepage" = "https://jesdev.io"
+"Repository" = "https://github.com/jesdev-io/libFRX"
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio"]
+
+[tool.pytest.ini_options]
+python_files = "tests/*.py"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W", "I", "B", "C4", "UP", "YTT"]
+ignore = ["E501"]
+
+[tool.black]
+line-length = 100
