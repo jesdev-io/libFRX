@@ -1,6 +1,8 @@
 #ifndef _SDCARD_JCCL_H_
 #define _SDCARD_JCCL_H_
 
+#ifdef FRX_ENABLE_MODULE_SDCARD
+
 #define SDCARD_JOB_NAME                 "sdcard"
 #define SDCARD_STREAMER_JOB_NAME        "sdstrm"
 
@@ -37,5 +39,7 @@
 #define SDCARD_MSG_MEM_FORMAT_free_tot  "%d/%d kB free"                             
 #define SDCARD_MSG_MEM_ERROR_errnum     "Free space can't be identified. (%d)"
 #define SDCARD_MSG_UNKNOWN_CMD          "Unknown SD command."
+
+#endif // FRX_ENABLE_MODULE_SDCARD
 
 #endif // _SDCARD_JCCL_H_
