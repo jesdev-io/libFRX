@@ -7,88 +7,59 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "syserr.h"
+#include "audio_default_cfg.h"
+#include "audio_jccl.h"
 
-// Configuration macros - can be overridden by consuming projects
-// Default values are for FR1-mini compatibility
-
-#ifndef AUDIO_SERVER_JOB_NAME
-#define AUDIO_SERVER_JOB_NAME   "audio"
-#endif
-
-#ifndef AUDIO_SERVER_JOB_MEM
-#define AUDIO_SERVER_JOB_MEM    (4096)
-#endif
-
-#ifndef AUDIO_FRAME_LEN
-#define AUDIO_FRAME_LEN         (1024)
-#endif
-
-// REQUIRED: Projects MUST define in platformio.ini (see PIN_DEFS.md)
-// No defaults - each project has different hardware
-#ifndef AUDIO_I2S_PORT
-#error "AUDIO_I2S_PORT must be defined in platformio.ini (see PIN_DEFS.md)"
-#endif
-
-#ifndef AUDIO_MAX_NUM_CH
-#define AUDIO_MAX_NUM_CH        2
-#endif
-
-#ifndef AUDIO_BPS_DEFAULT
-#define AUDIO_BPS_DEFAULT       32
-#endif
-
-#ifndef AUDIO_SR_44100
-#define AUDIO_SR_44100          44100
-#endif
-
-#ifndef AUDIO_SR_48000
-#define AUDIO_SR_48000          48000
-#endif
-
-#ifndef AUDIO_SR_96000
-#define AUDIO_SR_96000          96000
-#endif
-
-#ifndef AUDIO_SR_MAX
-#define AUDIO_SR_MAX            AUDIO_SR_96000
-#endif
-
-#ifndef AUDIO_SR_DEFAULT
-#define AUDIO_SR_DEFAULT        AUDIO_SR_48000
-#endif
-
-#ifndef AUDIO_SR_VALID
 #define AUDIO_SR_VALID(sr)      ((sr) == 44100 || (sr) == 48000 || (sr) == 96000)
-#endif
+#define AUDIO_BPS_VALID(bps)    ((bps) == 8 || (bps) == 16 || (bps) == 24 || (bps) == 32)
 
-#ifndef AUDIO_I2S_RESTART_MS
-#define AUDIO_I2S_RESTART_MS    200
-#endif
+typedef enum{
+    audio_i2s_bank_a,
+    #if AUDIO_MAX_NUM_CH>2
+    audio_i2s_bank_b,
+    #endif
+    audio_i2s_bank_N
+}audio_i2s_bank_t;
 
-// REQUIRED: Projects MUST define in platformio.ini (see PIN_DEFS.md)
-// No defaults - each project has different hardware
-#ifndef AUDIO_PIN_MEMS_I2S_BCLK
-#error "AUDIO_PIN_MEMS_I2S_BCLK must be defined in platformio.ini (see PIN_DEFS.md)"
-#endif
+typedef enum{
+    audio_i2s_bank_host_i = (i2s_mode_t)I2S_MODE_MASTER | I2S_MODE_RX,
+    audio_i2s_bank_host_o = (i2s_mode_t)I2S_MODE_MASTER | I2S_MODE_TX,
+    audio_i2s_bank_host_io = (i2s_mode_t)I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_RX,
+    audio_i2s_bank_devi_i = (i2s_mode_t)I2S_MODE_SLAVE | I2S_MODE_RX,
+    audio_i2s_bank_devi_o = (i2s_mode_t)I2S_MODE_SLAVE | I2S_MODE_TX,
+    audio_i2s_bank_devi_io = (i2s_mode_t)I2S_MODE_SLAVE | I2S_MODE_TX | I2S_MODE_RX
+}audio_i2s_direction_t;
 
-#ifndef AUDIO_PIN_MEMS_I2S_WS
-#error "AUDIO_PIN_MEMS_I2S_WS must be defined in platformio.ini (see PIN_DEFS.md)"
-#endif
+typedef enum{
+    audio_i2s_ch_mono = (i2s_channel_fmt_t)I2S_CHANNEL_FMT_ONLY_LEFT, // left is default for mono
+    audio_i2s_ch_stereo = (i2s_channel_fmt_t)I2S_CHANNEL_FMT_RIGHT_LEFT
+}audio_i2s_ch_t;
 
-#ifndef AUDIO_PIN_MEMS_I2S_IN
-#error "AUDIO_PIN_MEMS_I2S_IN must be defined in platformio.ini (see PIN_DEFS.md)"
-#endif
+typedef struct{
+    audio_i2s_bank_t bank;
+    audio_i2s_direction_t ad;
+    audio_i2s_ch_t ch;
+    uint8_t bclk; 
+    uint8_t ws; 
+    uint8_t data_rx; 
+    uint8_t data_tx;
+}audio_bank_t;
 
-#ifndef AUDIO_PIN_DAC_I2S_OUT
-#error "AUDIO_PIN_DAC_I2S_OUT must be defined in platformio.ini (see PIN_DEFS.md)"
-#endif
+typedef struct {
+    audio_sample_t audio_buf[AUDIO_FRAME_LEN*2];
+    QueueHandle_t audio_evt_queue;
+    uint32_t sr;
+    uint8_t bps;
+    audio_bank_t banks[audio_i2s_bank_N];
+} audio_meta_t;
+
 
 /// @brief Extended I2S event types for libFRX audio module
 /// @note These extend ESP-IDF's I2S events (I2S_EVENT_MAX + 1 and above)
 typedef enum{
-    I2S_EVENT_STOP = I2S_EVENT_MAX + 1,    /// Stop audio streaming
+    I2S_EVENT_STOP = I2S_EVENT_MAX + 1,     /// Stop audio streaming
     I2S_EVENT_RESTART,                      /// Restart audio streaming
-    AUDIO_CMD_SET_CALLBACK                /// Set new audio callback (via event queue data field)
+    AUDIO_CMD_SET_CALLBACK                  /// Set new audio callback (via event queue data field)
 }i2s_event_type_ext_t;
 
 typedef int32_t audio_sample_base_t;
@@ -131,14 +102,13 @@ typedef union {
 
 typedef void (*audio_cb_t)(audio_sample_t* pbuf);
 
-/// @brief Initializes the I2S audio interface.
-/// @param sr The sample rate to use.
-/// @param bclk The bit clock pin number.
-/// @param ws The word select pin number.
-/// @param data_rx The data RX pin number.
-/// @param data_tx The data TX pin number.
+/// @brief Initializes the audio module.
+/// @param sr Global sample rate.
+/// @param bps Global bit depth.
+/// @param audio_banks Array of audio bank configs.
+/// @param num_banks number of banks (either 1 or 2).
 /// @return Error code indicating success or failure.
-e_syserr_t audio_init(uint32_t sr, uint8_t bclk, uint8_t ws, uint8_t data_rx, uint8_t data_tx);
+e_syserr_t audio_init(uint32_t sr, uint8_t bps, audio_bank_t audio_banks[], uint8_t num_banks);
 
 /// @brief Initializes the I2S audio interface with default values.
 /// @return Error code indicating success or failure.
