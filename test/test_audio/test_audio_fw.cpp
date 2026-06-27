@@ -33,29 +33,26 @@ void test_audio_set_callback(void) {
 }
 
 void test_audio_init_invalid_sr(void) {
-    e_syserr_t e = audio_init(99999, 
-                              AUDIO_PIN_MEMS_I2S_BCLK, 
-                              AUDIO_PIN_MEMS_I2S_WS, 
-                              AUDIO_PIN_MEMS_I2S_IN, 
-                              AUDIO_PIN_DAC_I2S_OUT);
+    audio_settings_t settings = AUDIO_SETTINGS_CFG_DEFAULT;
+    audio_bank_t banks[] = AUDIO_BANKS_CFG_DEFAULT;
+    settings.sr = 99999;
+    e_syserr_t e = audio_init(settings, banks, audio_i2s_bank_N);
     TEST_ASSERT_EQUAL(e_syserr_param, e);
 }
 
 void test_audio_reinit_44100(void) {
-    e_syserr_t e = audio_init(AUDIO_SR_44100, 
-                              AUDIO_PIN_MEMS_I2S_BCLK, 
-                              AUDIO_PIN_MEMS_I2S_WS, 
-                              AUDIO_PIN_MEMS_I2S_IN,
-                              AUDIO_PIN_DAC_I2S_OUT);
+    audio_settings_t settings = AUDIO_SETTINGS_CFG_DEFAULT;
+    audio_bank_t banks[] = AUDIO_BANKS_CFG_DEFAULT;
+    settings.sr = AUDIO_SR_44100;
+    e_syserr_t e = audio_init(settings, banks, audio_i2s_bank_N);
     TEST_ASSERT_EQUAL(e_syserr_none, e);
 }
 
 void test_audio_reinit_96000(void) {
-    e_syserr_t e = audio_init(AUDIO_SR_96000, 
-                              AUDIO_PIN_MEMS_I2S_BCLK, 
-                              AUDIO_PIN_MEMS_I2S_WS, 
-                              AUDIO_PIN_MEMS_I2S_IN,
-                              AUDIO_PIN_DAC_I2S_OUT);
+    audio_settings_t settings = AUDIO_SETTINGS_CFG_DEFAULT;
+    audio_bank_t banks[] = AUDIO_BANKS_CFG_DEFAULT;
+    settings.sr = AUDIO_SR_96000;
+    e_syserr_t e = audio_init(settings, banks, audio_i2s_bank_N);
     TEST_ASSERT_EQUAL(e_syserr_none, e);
 }
 
