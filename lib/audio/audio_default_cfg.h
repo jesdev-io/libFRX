@@ -78,13 +78,18 @@
 #define AUDIO_I2S_RESTART_MS    40
 #endif
 
+#define AUDIO_SETTINGS_CFG_DEFAULT { \
+    .sr = AUDIO_SR_DEFAULT, \
+    .bps = AUDIO_BPS_DEFAULT, \
+    .bclk = AUDIO_PIN_I2S_BCLK, \
+    .ws = AUDIO_PIN_I2S_WS \
+}
+
 #define AUDIO_BANKS_CFG_SINGLE_MONO_I { \
     { \
         .bank = audio_i2s_bank_a, \
         .ad = audio_i2s_bank_host_i, \
         .ch = audio_i2s_ch_mono, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = AUDIO_PIN_I2S_IN_A, \
         .data_tx = -1 \
     } \
@@ -95,8 +100,6 @@
         .bank = audio_i2s_bank_a, \
         .ad = audio_i2s_bank_host_o, \
         .ch = audio_i2s_ch_mono, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = -1, \
         .data_tx = AUDIO_PIN_I2S_OUT_A \
     } \
@@ -107,8 +110,6 @@
         .bank = audio_i2s_bank_a, \
         .ad = audio_i2s_bank_host_io, \
         .ch = audio_i2s_ch_mono, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = AUDIO_PIN_I2S_IN_A, \
         .data_tx = AUDIO_PIN_I2S_OUT_A \
     } \
@@ -119,8 +120,6 @@
         .bank = audio_i2s_bank_a, \
         .ad = audio_i2s_bank_host_i, \
         .ch = audio_i2s_ch_stereo, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = AUDIO_PIN_I2S_IN_A, \
         .data_tx = -1 \
     } \
@@ -131,8 +130,6 @@
         .bank = audio_i2s_bank_a, \
         .ad = audio_i2s_bank_host_o, \
         .ch = audio_i2s_ch_stereo, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = -1, \
         .data_tx = AUDIO_PIN_I2S_OUT_A \
     } \
@@ -143,8 +140,6 @@
         .bank = audio_i2s_bank_a, \
         .ad = audio_i2s_bank_host_io, \
         .ch = audio_i2s_ch_stereo, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = AUDIO_PIN_I2S_IN_A, \
         .data_tx = AUDIO_PIN_I2S_OUT_A \
     } \
@@ -158,8 +153,6 @@
         .bank = audio_i2s_bank_a, \
         .ad = audio_i2s_bank_host_i, \
         .ch = audio_i2s_ch_stereo, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = AUDIO_PIN_I2S_IN_A, \
         .data_tx = -1 \
     } \
@@ -167,8 +160,6 @@
         .bank = audio_i2s_bank_b, \
         .ad = audio_i2s_bank_devi_i, \
         .ch = audio_i2s_ch_stereo, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = AUDIO_PIN_I2S_IN_B, \
         .data_tx = -1 \
     }
@@ -179,8 +170,6 @@
         .bank = audio_i2s_bank_a, \
         .ad = audio_i2s_bank_host_o, \
         .ch = audio_i2s_ch_stereo, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = -1, \
         .data_tx = AUDIO_PIN_I2S_OUT_A \
     } \
@@ -188,8 +177,6 @@
         .bank = audio_i2s_bank_b, \
         .ad = audio_i2s_bank_devi_o, \
         .ch = audio_i2s_ch_stereo, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = -1, \
         .data_tx = AUDIO_PIN_I2S_OUT_B \
     }
@@ -200,8 +187,6 @@
         .bank = audio_i2s_bank_a, \
         .ad = audio_i2s_bank_host_io, \
         .ch = audio_i2s_ch_stereo, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = AUDIO_PIN_I2S_IN_A, \
         .data_tx = AUDIO_PIN_I2S_OUT_A \
     } \
@@ -209,8 +194,6 @@
         .bank = audio_i2s_bank_b, \
         .ad = audio_i2s_bank_devi_io, \
         .ch = audio_i2s_ch_stereo, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = AUDIO_PIN_I2S_IN_B, \
         .data_tx = AUDIO_PIN_I2S_OUT_B \
     }
@@ -222,8 +205,6 @@
         .bank = audio_i2s_bank_a, \
         .ad = audio_i2s_bank_host_i, \
         .ch = audio_i2s_ch_stereo, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = AUDIO_PIN_I2S_IN_A, \
         .data_tx = -1 \
     } \
@@ -231,8 +212,6 @@
         .bank = audio_i2s_bank_b, \
         .ad = audio_i2s_bank_devi_i, \
         .ch = audio_i2s_ch_stereo, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = AUDIO_PIN_I2S_IN_B, \
         .data_tx = -1 \
     }
@@ -243,8 +222,6 @@
         .bank = audio_i2s_bank_a, \
         .ad = audio_i2s_bank_host_o, \
         .ch = audio_i2s_ch_stereo, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = -1, \
         .data_tx = AUDIO_PIN_I2S_OUT_A \
     } \
@@ -252,8 +229,6 @@
         .bank = audio_i2s_bank_b, \
         .ad = audio_i2s_bank_devi_o, \
         .ch = audio_i2s_ch_stereo, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = -1, \
         .data_tx = AUDIO_PIN_I2S_OUT_B \
     }
@@ -264,8 +239,6 @@
         .bank = audio_i2s_bank_a, \
         .ad = audio_i2s_bank_host_io, \
         .ch = audio_i2s_ch_stereo, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = AUDIO_PIN_I2S_IN_A, \
         .data_tx = AUDIO_PIN_I2S_OUT_A \
     } \
@@ -273,8 +246,6 @@
         .bank = audio_i2s_bank_b, \
         .ad = audio_i2s_bank_devi_io, \
         .ch = audio_i2s_ch_stereo, \
-        .bclk = AUDIO_PIN_I2S_BCLK, \
-        .ws = AUDIO_PIN_I2S_WS, \
         .data_rx = AUDIO_PIN_I2S_IN_B, \
         .data_tx = AUDIO_PIN_I2S_OUT_B \
     }
