@@ -13,6 +13,7 @@
 #define AUDIO_SR_VALID(sr)      ((sr) == 44100 || (sr) == 48000 || (sr) == 96000)
 #define AUDIO_BPS_VALID(bps)    ((bps) == 8 || (bps) == 16 || (bps) == 24 || (bps) == 32)
 
+/// @brief Audio bank enumeration. The ESP32 has 2 stereo banks, meaning 4 IO channels.
 typedef enum{
     audio_i2s_bank_a,
     #if AUDIO_MAX_NUM_CH>2
@@ -21,38 +22,52 @@ typedef enum{
     audio_i2s_bank_N
 }audio_i2s_bank_t;
 
+/// @brief Audio data stream directions
+/// @brief "i" means input, "o" means output
+/// @note "host" means "master", "devi" means slave
 typedef enum{
     audio_i2s_bank_host_i = (i2s_mode_t)I2S_MODE_MASTER | I2S_MODE_RX,
     audio_i2s_bank_host_o = (i2s_mode_t)I2S_MODE_MASTER | I2S_MODE_TX,
     audio_i2s_bank_host_io = (i2s_mode_t)I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_RX,
+    audio_i2s_bank_HOST_NUM,
     audio_i2s_bank_devi_i = (i2s_mode_t)I2S_MODE_SLAVE | I2S_MODE_RX,
     audio_i2s_bank_devi_o = (i2s_mode_t)I2S_MODE_SLAVE | I2S_MODE_TX,
-    audio_i2s_bank_devi_io = (i2s_mode_t)I2S_MODE_SLAVE | I2S_MODE_TX | I2S_MODE_RX
+    audio_i2s_bank_devi_io = (i2s_mode_t)I2S_MODE_SLAVE | I2S_MODE_TX | I2S_MODE_RX,
+    audio_i2s_bank_DEVI_NUM
 }audio_i2s_direction_t;
 
+/// @brief Audio data channel naming
+/// @note Maps "left" to mono and "left/right" to stereo on a bank.
 typedef enum{
-    audio_i2s_ch_mono = (i2s_channel_fmt_t)I2S_CHANNEL_FMT_ONLY_LEFT, // left is default for mono
+    audio_i2s_ch_mono = (i2s_channel_fmt_t)I2S_CHANNEL_FMT_ONLY_LEFT,
     audio_i2s_ch_stereo = (i2s_channel_fmt_t)I2S_CHANNEL_FMT_RIGHT_LEFT
 }audio_i2s_ch_t;
 
+/// @brief Global audio settings shared by all banks.
+/// @param sr Sampling rate.
+/// @param bps Bit depth.
+/// @param bclk Shared bitclock pin number.
+/// @param ws Shared word select pin number.
+typedef struct{
+    uint32_t sr;
+    uint8_t bps;
+    int8_t bclk;
+    int8_t ws;
+}audio_settings_t;
+
+/// @brief Audio bank description. A bank is a stereo block.
+/// @param bank Bank number. Is either audio_i2s_bank_a or audio_i2s_bank_b.
+/// @param ad Audio direction. See audio_i2s_direction_t.
+/// @param ch Channel config. Is either audio_i2s_ch_mono or audio_i2s_ch_stereo.
+/// @param data_rx Audio data in pin number for bank. Set to -1 if output only.
+/// @param data_tx Audio data out pin number for bank. Set to -1 if input only.
 typedef struct{
     audio_i2s_bank_t bank;
     audio_i2s_direction_t ad;
     audio_i2s_ch_t ch;
-    uint8_t bclk; 
-    uint8_t ws; 
-    uint8_t data_rx; 
-    uint8_t data_tx;
+    int8_t data_rx; 
+    int8_t data_tx;
 }audio_bank_t;
-
-typedef struct {
-    audio_sample_t audio_buf[AUDIO_FRAME_LEN*2];
-    QueueHandle_t audio_evt_queue;
-    uint32_t sr;
-    uint8_t bps;
-    audio_bank_t banks[audio_i2s_bank_N];
-} audio_meta_t;
-
 
 /// @brief Extended I2S event types for libFRX audio module
 /// @note These extend ESP-IDF's I2S events (I2S_EVENT_MAX + 1 and above)
@@ -100,23 +115,37 @@ typedef union {
     audio_val_base_t ch[AUDIO_MAX_NUM_CH];
 }audio_val_t;
 
+/// @brief Audio meta descriptor. Holds buffer, event queue, global settings and banks.
+typedef struct {
+    audio_sample_t audio_buf[AUDIO_FRAME_LEN*2];
+    QueueHandle_t audio_evt_queue;
+    audio_settings_t settings;
+    audio_bank_t banks[audio_i2s_bank_N];
+} audio_meta_t;
+
 typedef void (*audio_cb_t)(audio_sample_t* pbuf);
 
 /// @brief Initializes the audio module.
-/// @param sr Global sample rate.
-/// @param bps Global bit depth.
+/// @param settings Global audio settings.
 /// @param audio_banks Array of audio bank configs.
 /// @param num_banks number of banks (either 1 or 2).
 /// @return Error code indicating success or failure.
-e_syserr_t audio_init(uint32_t sr, uint8_t bps, audio_bank_t audio_banks[], uint8_t num_banks);
+e_syserr_t audio_init(audio_settings_t settings, audio_bank_t audio_banks[], uint8_t num_banks);
 
 /// @brief Initializes the I2S audio interface with default values.
 /// @return Error code indicating success or failure.
 /// @note Is part of the common signature interface for the init routine.
+/// @note The default audio config is AUDIO_BANKS_CFG_SINGLE_STEREO_IO
 e_syserr_t audio_init_default(void);
 
 /// @brief Manages the queue ISR for audio I/O.
 /// @param p Pointer to job parameters.
+/// @note If more than one bank is configured, the second one
+///       is chained to the first (devi-config). Since they become
+///       synchronised that way, the second peripheral event is not needed.
+///       The sampler assumes that the completion of an audio IO block on
+///       bank A means that bank B is finished as well, which is why only
+///       the event of bank A is considered. 
 void audio_sampler(void* p);
 
 /// @brief Read audio samples from I2S peripheral.
