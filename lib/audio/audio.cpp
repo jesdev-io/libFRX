@@ -71,6 +71,17 @@ static inline uint8_t __audio_bank_nch(audio_bank_t* bank){
     return (bank->ch == audio_i2s_ch_mono) ? 1 : 2;
 }
 
+static uint8_t __audio_active_nch(void){
+    uint8_t nch_rx = 0;
+    uint8_t nch_tx = 0;
+    for(uint8_t i = audio_i2s_bank_a; i < audio_meta.__num_banks; i++){
+        uint8_t nch = __audio_bank_nch(&audio_meta.banks[i]);
+        if(audio_meta.banks[i].ad & I2S_MODE_RX) nch_rx += nch;
+        if(audio_meta.banks[i].ad & I2S_MODE_TX) nch_tx += nch;
+    }
+    return nch_rx ? nch_rx : nch_tx;
+}
+
 /// @brief Convert raw i2s byte data into audio samples. 
 /// @param p Pointer to byte buffer for one sample base type.
 /// @param bps Bits per sample.
@@ -494,15 +505,26 @@ e_syserr_t audio_start(void){
     job_struct_t* audio_job = __job_get_job_by_name(AUDIO_SERVER_JOB_NAME);
     if(!audio_job) return e_syserr_uninitialized;
     audio_job->error = e_err_no_err;
-    if(jes_launch_job(AUDIO_SERVER_JOB_NAME) != e_err_no_err) return e_syserr_driver_fail;
+    jes_err_t je = jes_launch_job(AUDIO_SERVER_JOB_NAME);
+    if(je == e_err_duplicate) return e_syserr_none;
+    if(je != e_err_no_err) return e_syserr_driver_fail;
     return e_syserr_none;
 }
 
 e_syserr_t audio_stop(void){
+    job_struct_t* audio_job = __job_get_job_by_name(AUDIO_SERVER_JOB_NAME);
+    if(!audio_job) return e_syserr_uninitialized;
+    if(!audio_job->instances) return e_syserr_none;
+    if(!audio_meta.audio_evt_qlist[audio_ctrl_queue_idx]) return e_syserr_uninitialized;
     i2s_event_t evt;
     evt.type = (i2s_event_type_t)AUDIO_CTRL_EVT_STOP;
     if(xQueueSend(audio_meta.audio_evt_qlist[audio_ctrl_queue_idx], &evt, pdMS_TO_TICKS(AUDIO_SAMPLER_STOP_TIMEOUT_MS)) != pdPASS){
         return e_syserr_driver_fail;
+    }
+    uint32_t stop_wait_ms = 0;
+    while(audio_job->instances){
+        if(stop_wait_ms++ >= AUDIO_SAMPLER_STOP_TIMEOUT_MS) return e_syserr_driver_fail;
+        jes_delay_job_ms(1);
     }
     return e_syserr_none;
 }
@@ -519,6 +541,7 @@ void audio_clear(void){
 
 e_syserr_t audio_set_callback(audio_cb_t cb){
     audio_meta.cb = cb;
+    if(!audio_meta.audio_evt_qlist[audio_ctrl_queue_idx]) return e_syserr_none;
     i2s_event_t evt;
     evt.type = (i2s_event_type_t)AUDIO_CTRL_EVT_SET_CALLBACK;
     evt.size = (size_t)cb;
@@ -535,6 +558,15 @@ e_syserr_t audio_set_gain(audio_val_base_t gain){
 
 audio_val_base_t audio_get_gain(void){
     return audio_meta.settings.gain;
+}
+
+uint8_t audio_is_running(void){
+    job_struct_t* audio_job = __job_get_job_by_name(AUDIO_SERVER_JOB_NAME);
+    return (audio_job && audio_job->instances) ? 1 : 0;
+}
+
+uint8_t audio_get_nch(void){
+    return __audio_active_nch();
 }
 
 uint32_t audio_get_sr(void){
@@ -577,13 +609,13 @@ void audio_ctrl_job(void* p){
                 __audio_ctrl_print_usage(pj);
                 return;
             }
-            if(strcmp(arg, "-sr") == 0){
+            if(strcmp(arg, AUDIO_OPT_SR_DASH) == 0 || strcmp(arg, AUDIO_OPT_SR) == 0){
                 settings.sr = atoi(value);
             }
-            else if(strcmp(arg, "-bps") == 0){
+            else if(strcmp(arg, AUDIO_OPT_BPS_DASH) == 0 || strcmp(arg, AUDIO_OPT_BPS) == 0){
                 settings.bps = atoi(value);
             }
-            else if(strcmp(arg, "-gain") == 0){
+            else if(strcmp(arg, AUDIO_OPT_GAIN_DASH) == 0 || strcmp(arg, AUDIO_OPT_GAIN) == 0){
                 settings.gain = __audio_gain_clip(atof(value));
             }
             else{
@@ -633,6 +665,16 @@ void audio_ctrl_job(void* p){
         while(jes_job_arg_next()){}
         audio_set_gain(0.0f);
         jes_print_pj(pj, AUDIO_MSG_VOLUME "\n\r", (int)(audio_get_gain() * 1000.0f));
+    }
+    else if(jes_job_is_arg(arg, AUDIO_CMD_STATUS)) {
+        while(jes_job_arg_next()){}
+        jes_print_pj(pj, AUDIO_MSG_STATUS "\n\r",
+                     audio_is_running(),
+                     (unsigned long)audio_get_sr(),
+                     (unsigned int)audio_meta.settings.bps,
+                     (int)(audio_get_gain() * 1000.0f),
+                     (unsigned int)audio_get_nch(),
+                     (unsigned int)audio_meta.__num_banks);
     }
     else{
         while(jes_job_arg_next()){}

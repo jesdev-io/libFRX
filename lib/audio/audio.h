@@ -217,6 +217,14 @@ e_syserr_t audio_set_gain(audio_val_base_t gain);
 /// @return Current linear gain.
 audio_val_base_t audio_get_gain(void);
 
+/// @brief Check whether the audio sampler job has a running instance.
+/// @return 1 when the sampler is running, otherwise 0.
+uint8_t audio_is_running(void);
+
+/// @brief Get the number of active audio channels in the current topology.
+/// @return Active channel count, or 0 before initialization.
+uint8_t audio_get_nch(void);
+
 /// @brief Get the current sample rate.
 /// @return Sample rate in Hz (set during audio_init)
 uint32_t audio_get_sr(void);
