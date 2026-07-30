@@ -90,6 +90,14 @@ void audio_timing_mark_callback_runtime(audio_timing_state_t* state, uint64_t st
     if(runtime_us > state->counters.callback_max_runtime_us) state->counters.callback_max_runtime_us = runtime_us;
 }
 
+void audio_timing_mark_internal_callback_runtime(audio_timing_state_t* state, uint64_t start_us){
+    if(!state || !start_us) return;
+    uint32_t runtime_us = (uint32_t)(esp_timer_get_time() - start_us);
+    state->counters.internal_callback_count++;
+    state->counters.internal_callback_last_runtime_us = runtime_us;
+    if(runtime_us > state->counters.internal_callback_max_runtime_us) state->counters.internal_callback_max_runtime_us = runtime_us;
+}
+
 void audio_timing_mark_write_runtime(audio_timing_state_t* state, uint64_t start_us){
     if(!state || !start_us) return;
     uint32_t runtime_us = (uint32_t)(esp_timer_get_time() - start_us);

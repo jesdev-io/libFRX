@@ -29,6 +29,9 @@ typedef struct{
     uint32_t callback_count;
     uint32_t callback_last_runtime_us;
     uint32_t callback_max_runtime_us;
+    uint32_t internal_callback_count;
+    uint32_t internal_callback_last_runtime_us;
+    uint32_t internal_callback_max_runtime_us;
     uint32_t write_count;
     uint32_t write_last_runtime_us;
     uint32_t write_max_runtime_us;
@@ -50,6 +53,7 @@ uint64_t audio_timing_mark_process_start(audio_timing_state_t* state);
 void audio_timing_mark_process_end(audio_timing_state_t* state, uint64_t process_start_us);
 void audio_timing_mark_read_runtime(audio_timing_state_t* state, uint64_t start_us);
 void audio_timing_mark_callback_runtime(audio_timing_state_t* state, uint64_t start_us);
+void audio_timing_mark_internal_callback_runtime(audio_timing_state_t* state, uint64_t start_us);
 void audio_timing_mark_write_runtime(audio_timing_state_t* state, uint64_t start_us);
 void audio_timing_mark_read_error(audio_timing_state_t* state);
 void audio_timing_mark_write_error(audio_timing_state_t* state);

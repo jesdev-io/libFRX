@@ -30,6 +30,9 @@ class ProcessTiming:
     callback_count: int = 0
     callback_last_us: int = 0
     callback_max_us: int = 0
+    internal_callback_count: int = 0
+    internal_callback_last_us: int = 0
+    internal_callback_max_us: int = 0
     write_count: int = 0
     write_last_us: int = 0
     write_max_us: int = 0
@@ -156,8 +159,25 @@ def _run_block_sweep(env: str, blocks: list[int], pingpong_factor: int, clean: b
 def _parse_timing(output: str) -> tuple[ProcessTiming, list[BankTiming]]:
     proc_re = re.compile(
         r"AUDIO_TIMING process count=(\d+) delta_us last=(\d+) min=(\d+) max=(\d+) "
+        r"runtime_max=(\d+)"
+    )
+    proc_short_re = re.compile(r"AUDIO_TIMING proc c=(\d+) l=(\d+) n=(\d+) x=(\d+) r=(\d+)")
+    read_short_re = re.compile(r"AUDIO_TIMING read c=(\d+) l=(\d+) x=(\d+) e=(\d+)")
+    cb_short_re = re.compile(r"AUDIO_TIMING cb c=(\d+) l=(\d+) x=(\d+)")
+    intcb_short_re = re.compile(r"AUDIO_TIMING intcb c=(\d+) l=(\d+) x=(\d+)")
+    write_short_re = re.compile(r"AUDIO_TIMING write c=(\d+) l=(\d+) x=(\d+) e=(\d+)")
+    io_re = re.compile(
+        r"AUDIO_TIMING io read_count=(\d+) read_last=(\d+) read_max=(\d+) "
+        r"cb_count=(\d+) cb_last=(\d+) cb_max=(\d+) "
+        r"int_cb_count=(\d+) int_cb_last=(\d+) int_cb_max=(\d+) "
+        r"write_count=(\d+) write_last=(\d+) write_max=(\d+) "
+        r"read_err=(\d+) write_err=(\d+)"
+    )
+    old_proc_re = re.compile(
+        r"AUDIO_TIMING process count=(\d+) delta_us last=(\d+) min=(\d+) max=(\d+) "
         r"runtime_max=(\d+) read_count=(\d+) read_last=(\d+) read_max=(\d+) "
         r"cb_count=(\d+) cb_last=(\d+) cb_max=(\d+) "
+        r"(?:int_cb_count=(\d+) int_cb_last=(\d+) int_cb_max=(\d+) )?"
         r"write_count=(\d+) write_last=(\d+) write_max=(\d+) "
         r"read_err=(\d+) write_err=(\d+)"
     )
@@ -165,13 +185,36 @@ def _parse_timing(output: str) -> tuple[ProcessTiming, list[BankTiming]]:
         r"AUDIO_TIMING bank=(\d+) count=(\d+) rx=(\d+) tx=(\d+) "
         r"delta_us last=(\d+) min=(\d+) max=(\d+)"
     )
+    bank_short_re = re.compile(r"AUDIO_TIMING bank=(\d+) c=(\d+) rx=(\d+) tx=(\d+) l=(\d+) n=(\d+) x=(\d+)")
 
     p = ProcessTiming()
     banks: list[BankTiming] = []
     for line in output.splitlines():
-        if m := proc_re.search(line):
-            p = ProcessTiming(*(int(x) for x in m.groups()))
+        if m := old_proc_re.search(line):
+            p = ProcessTiming(*(int(x) if x is not None else 0 for x in m.groups()))
+        elif m := proc_re.search(line):
+            p.count, p.last_us, p.min_us, p.max_us, p.runtime_max_us = (int(x) for x in m.groups())
+        elif m := proc_short_re.search(line):
+            p.count, p.last_us, p.min_us, p.max_us, p.runtime_max_us = (int(x) for x in m.groups())
+        elif m := io_re.search(line):
+            (
+                p.read_count, p.read_last_us, p.read_max_us,
+                p.callback_count, p.callback_last_us, p.callback_max_us,
+                p.internal_callback_count, p.internal_callback_last_us, p.internal_callback_max_us,
+                p.write_count, p.write_last_us, p.write_max_us,
+                p.read_err, p.write_err,
+            ) = (int(x) for x in m.groups())
+        elif m := read_short_re.search(line):
+            p.read_count, p.read_last_us, p.read_max_us, p.read_err = (int(x) for x in m.groups())
+        elif m := cb_short_re.search(line):
+            p.callback_count, p.callback_last_us, p.callback_max_us = (int(x) for x in m.groups())
+        elif m := intcb_short_re.search(line):
+            p.internal_callback_count, p.internal_callback_last_us, p.internal_callback_max_us = (int(x) for x in m.groups())
+        elif m := write_short_re.search(line):
+            p.write_count, p.write_last_us, p.write_max_us, p.write_err = (int(x) for x in m.groups())
         elif m := bank_re.search(line):
+            banks.append(BankTiming(*(int(x) for x in m.groups())))
+        elif m := bank_short_re.search(line):
             banks.append(BankTiming(*(int(x) for x in m.groups())))
     return p, banks
 
@@ -197,7 +240,7 @@ def _plot(
     fig.subplots_adjust(left=0.08, right=0.98, top=0.90, bottom=0.30, hspace=0.45)
     fig.suptitle("libFRX Audio Timing Probe", fontsize=15)
 
-    effective_overhead_us = process.callback_max_us + process.write_max_us
+    effective_overhead_us = process.callback_max_us + process.internal_callback_max_us + process.write_max_us
     effective_overhead_pct = (effective_overhead_us / expected_us * 100.0) if expected_us else None
 
     labels = [
@@ -205,6 +248,7 @@ def _plot(
         "service span\n(includes idle)",
         "read wait\n(mostly idle)",
         "callback CPU",
+        "internal cb",
         "write/pack",
         "effective\noverhead",
     ]
@@ -213,10 +257,11 @@ def _plot(
         process.runtime_max_us,
         process.read_max_us,
         process.callback_max_us,
+        process.internal_callback_max_us,
         process.write_max_us,
         effective_overhead_us,
     ]
-    colors = ["#4c78a8", "#9ecae9", "#d9d9d9", "#f58518", "#54a24b", "#e45756"]
+    colors = ["#4c78a8", "#9ecae9", "#d9d9d9", "#f58518", "#b279a2", "#54a24b", "#e45756"]
     axes[0].bar(labels, vals, color=colors)
     if expected_us:
         axes[0].axhline(expected_us, linestyle="--", label=f"expected block {expected_us:.1f} us")
@@ -255,6 +300,7 @@ def _plot(
         f"read wait is shown but excluded because idle-blocking is not consuming overhead\n"
         f"breakdown: read last/max={process.read_last_us}/{process.read_max_us} us, "
         f"callback last/max={process.callback_last_us}/{process.callback_max_us} us, "
+        f"internal callback last/max={process.internal_callback_last_us}/{process.internal_callback_max_us} us, "
         f"write last/max={process.write_last_us}/{process.write_max_us} us, "
         f"read_err={process.read_err}, write_err={process.write_err}\n"
         f"{bank_summary}"
