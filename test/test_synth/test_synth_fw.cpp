@@ -5,11 +5,9 @@
 #include "audio.h"
 #include "syserr.h"
 
-static inline void synth_cb(audio_sample_t* buf){
-    static uint8_t frame_pos = 0;
-    synth_write(&buf[AUDIO_FRAME_LEN*(frame_pos)], AUDIO_FRAME_LEN);
-    audio_write(&buf[AUDIO_FRAME_LEN*(!frame_pos)], AUDIO_FRAME_LEN, 32, AUDIO_MAX_NUM_CH);
-    frame_pos = !frame_pos;
+static inline void synth_cb(audio_io_t* iobuf){
+    if(!iobuf || !iobuf->out) return;
+    synth_write(iobuf->out, iobuf->len);
 }
 
 void test_jes_bootup(void) {
@@ -78,9 +76,9 @@ void test_synth_write_sine(void) {
     }
 
     // physically play audio, check with headphones or scope
-    jes_err_t je = jes_launch_job(AUDIO_SERVER_JOB_NAME);
-    TEST_ASSERT_EQUAL(e_err_no_err, je);
     e = audio_set_callback(synth_cb);
+    TEST_ASSERT_EQUAL(e_syserr_none, e);
+    e = audio_start();
     TEST_ASSERT_EQUAL(e_syserr_none, e);
     // audio keeps running for remaining tests
 }
