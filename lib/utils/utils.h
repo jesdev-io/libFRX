@@ -6,14 +6,6 @@
 #include <jescore.h>
 #include "syserr.h"
 
-#ifdef UTILS_DEBUG_PRINT_ENABLE
-#define UTILS_DEBUG_PRINT(format, ...) jes_print(format, ##__VA_ARGS__)
-#define UTILS_DEBUG_PRINT_PJ(pj, format, ...) jes_print_pj(pj, format, ##__VA_ARGS__)
-#else
-#define UTILS_DEBUG_PRINT(format, ...)
-#define UTILS_DEBUG_PRINT_PJ(pj, format, ...)
-#endif
-
 #define UTILS_CLIP_MAX(max, val) val > max ? max : val
 #define UTILS_CLIP_MIN(min, val) val < min ? min : val
 

@@ -10,8 +10,7 @@ authors = [
     { name = "jake-is-ESD-protected", email = "jake@jesdev.io" }
 ]
 dependencies = [
-    "jescorecli @ git+https://github.com/jesdev-io/jescorecli.git",
-    "pytest"
+    "jescorecli @ git+https://github.com/jesdev-io/jescorecli.git"
 ]
 keywords = ["FRX", "libFRX", "embedded", "ESP32", "jescore"]
 requires-python = ">=3.9"
@@ -21,7 +20,7 @@ requires-python = ">=3.9"
 "Repository" = "https://github.com/jesdev-io/libFRX"
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio"]
+dev = ["pytest", "pytest-asyncio", "mkdocs-material", "matplotlib"]
 
 [tool.pytest.ini_options]
 python_files = "tests/*.py"

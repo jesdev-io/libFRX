@@ -1,0 +1,43 @@
+site_name: libFRX
+site_description: Embedded audio, DSP, and hardware utility library
+repo_url: https://github.com/jesdev-io/libFRX
+
+docs_dir: docs
+site_dir: ./site
+
+exclude_docs: |
+  mkdocs.yml
+  templates/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - content.code.copy
+    - search.suggest
+
+nav:
+  - Home: index.md
+  - Modules:
+      - Audio: modules/audio.md
+  - API Reference:
+      - Overview: reference/index.md
+      - Generated Index: reference/generated/index.md
+      - Audio: reference/generated/audio_api.md
+      - DSP: reference/generated/dsp_frx_api.md
+      - External Flash: reference/generated/ext_flash_api.md
+      - I2C: reference/generated/i2c_api.md
+      - SD Card: reference/generated/sdcard_api.md
+      - Synth: reference/generated/synth_api.md
+      - Utils: reference/generated/utils_api.md
+      - WAV: reference/generated/wav_api.md
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path: docs
