@@ -14,13 +14,22 @@
 #define AUDIO_BPS_VALID(bps)    ((bps) == 8 || (bps) == 16 || (bps) == 24 || (bps) == 32)
 
 /// @brief Audio bank enumeration. The ESP32 has 2 stereo banks, meaning 4 IO channels.
+/// @note The control queue enumeration is included, so that the audio meta type can hold
+///       all queues of the system in one queue array. To not break semantics, the amount
+///       of banks and the index for the control queue have the same number. As seen in
+///       audio_meta_t, the field audio_evt_qlist ist an array of length audio_i2s_bank_N + 1.
 typedef enum{
     audio_i2s_bank_a,
     #if AUDIO_MAX_NUM_CH>2
     audio_i2s_bank_b,
     #endif
-    audio_i2s_bank_N
+    audio_i2s_bank_N,
+    audio_ctrl_queue_idx = audio_i2s_bank_N
 }audio_i2s_bank_t;
+
+#ifdef AUDIO_TIMING_ENABLE
+#include "audio_timing_tools.h"
+#endif
 
 /// @brief Audio data stream directions
 /// @brief "i" means input, "o" means output
@@ -43,16 +52,21 @@ typedef enum{
     audio_i2s_ch_stereo = (i2s_channel_fmt_t)I2S_CHANNEL_FMT_RIGHT_LEFT
 }audio_i2s_ch_t;
 
+typedef int32_t audio_sample_base_t;
+typedef float audio_val_base_t;
+
 /// @brief Global audio settings shared by all banks.
 /// @param sr Sampling rate.
 /// @param bps Bit depth.
 /// @param bclk Shared bitclock pin number.
 /// @param ws Shared word select pin number.
+/// @param gain Linear output gain applied by the internal audio callback. 0 mutes, 1 is neutral.
 typedef struct{
     uint32_t sr;
     uint8_t bps;
     int8_t bclk;
     int8_t ws;
+    audio_val_base_t gain;
 }audio_settings_t;
 
 /// @brief Audio bank description. A bank is a stereo block.
@@ -72,13 +86,11 @@ typedef struct{
 /// @brief Extended I2S event types for libFRX audio module
 /// @note These extend ESP-IDF's I2S events (I2S_EVENT_MAX + 1 and above)
 typedef enum{
-    I2S_EVENT_STOP = I2S_EVENT_MAX + 1,     /// Stop audio streaming
-    I2S_EVENT_RESTART,                      /// Restart audio streaming
-    AUDIO_CMD_SET_CALLBACK                  /// Set new audio callback (via event queue data field)
+    AUDIO_CTRL_EVT_STOP = I2S_EVENT_MAX + 1,     /// Stop audio streaming
+    AUDIO_CTRL_EVT_RESTART,                      /// Restart audio streaming
+    AUDIO_CTRL_EVT_SUSPEND,
+    AUDIO_CTRL_EVT_SET_CALLBACK                  /// Set new audio callback (via event queue data field)
 }i2s_event_type_ext_t;
-
-typedef int32_t audio_sample_base_t;
-typedef float audio_val_base_t;
 
 /// @brief Sample description in time. All channels run in parallel.
 /// @note Amount of possible channels set by `AUDIO_MAX_NUM_CH`, but
@@ -99,6 +111,9 @@ typedef union {
     audio_sample_base_t ch[AUDIO_MAX_NUM_CH];
 }audio_sample_t;
 
+/// @brief Arbitrary DSP value description in time. All channels run in parallel.
+/// @note Amount of possible channels set by `AUDIO_MAX_NUM_CH`, but
+///       the runtime can use less than that if wanted.
 typedef union {
     struct {
         audio_val_base_t ch1;
@@ -115,15 +130,38 @@ typedef union {
     audio_val_base_t ch[AUDIO_MAX_NUM_CH];
 }audio_val_t;
 
+/// @brief Audio data IO struct. Represents the callback interface.
+/// @note If only input or only output is configured, the other poiner is NULL.
+typedef struct{
+    audio_sample_t* in;
+    audio_sample_t* out;
+    uint32_t len;
+    uint8_t nch;
+}audio_io_t;
+
+typedef void (*audio_cb_t)(audio_io_t* iobuf);
+
 /// @brief Audio meta descriptor. Holds buffer, event queue, global settings and banks.
+/// @param audio_buf Audio data buffer. Size is sizeof(audio_sample_t) * AUDIO_PINGPONG_SAMPLES * 2.
+/// @param audio_evt_qset FreeRTOS queue set for unified queue access.
+/// @param audio_evt_qlist Array of queues. The last element is the control queue.
+/// @param settings Global audio settings instance.
+/// @param banks Array of bank descriptors holding hardware parameters.
+/// @param __num_banks Runtime defined bank count. Can't be more than audio_i2s_bank_N, but can be less.
+/// @param sampler_suspended State of sampler.
 typedef struct {
-    audio_sample_t audio_buf[AUDIO_FRAME_LEN*2];
-    QueueHandle_t audio_evt_queue;
+    audio_sample_t audio_buf[AUDIO_PINGPONG_SAMPLES*2];
+    QueueSetHandle_t audio_evt_qset;
+    QueueHandle_t audio_evt_qlist[audio_i2s_bank_N + 1];
     audio_settings_t settings;
     audio_bank_t banks[audio_i2s_bank_N];
+    audio_cb_t cb;
+    uint8_t __num_banks;
+    volatile uint8_t sampler_suspended;
+    #ifdef AUDIO_TIMING_ENABLE
+    audio_timing_state_t timing;
+    #endif
 } audio_meta_t;
-
-typedef void (*audio_cb_t)(audio_sample_t* pbuf);
 
 /// @brief Initializes the audio module.
 /// @param settings Global audio settings.
@@ -148,25 +186,17 @@ e_syserr_t audio_init_default(void);
 ///       the event of bank A is considered. 
 void audio_sampler(void* p);
 
-/// @brief Read audio samples from I2S peripheral.
-/// @param data Destination buffer for audio samples.
-/// @param len Number of samples to read.
-/// @param bps Bits per single channel sample (resolution).
-/// @param nch Amount of active channels.
-/// @note Blocking call - waits for data to be available.
-void audio_read(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch);
+/// @brief Manages jccl-style access to the audio sampler
+/// @param p Pointer to job parameters.
+void audio_ctrl_job(void* p);
 
-/// @brief Write audio samples to I2S peripheral.
-/// @param data Source buffer containing audio samples.
-/// @param len Number of samples to write.
-/// @param bps Bits per single channel sample (resolution).
-/// @param nch Amount of active channels.
-/// @note Blocking call - waits for write completion.
-void audio_write(audio_sample_t* data, uint32_t len, uint8_t bps, uint8_t nch);
+/// @brief Start the audio sampler loop.
+/// @return Error code (e_syserr_none on success, e_syserr_driver_fail if launch fails)
+e_syserr_t audio_start(void);
 
-/// @brief Suspend the audio loop for a short amount of time for state transitions. 
-/// @note The length of suspension is set in `AUDIO_I2S_RESTART_MS`
-void audio_suspend_short(void);
+/// @brief Request the audio sampler loop to stop.
+/// @return Error code (e_syserr_none on success, e_syserr_driver_fail if queue full)
+e_syserr_t audio_stop(void);
 
 /// @brief Clear the audio event queue.
 void audio_clear(void);
@@ -178,9 +208,35 @@ void audio_clear(void);
 /// @note Callback change takes effect on next I2S event. Uses queue for thread-safe update.
 e_syserr_t audio_set_callback(audio_cb_t cb);
 
+/// @brief Set linear output gain. Values are clipped to 0..1.
+/// @param gain Linear gain. 0 mutes, 1 is neutral.
+/// @return e_syserr_none.
+e_syserr_t audio_set_gain(audio_val_base_t gain);
+
+/// @brief Get linear output gain.
+/// @return Current linear gain.
+audio_val_base_t audio_get_gain(void);
+
+/// @brief Check whether the audio sampler job has a running instance.
+/// @return 1 when the sampler is running, otherwise 0.
+uint8_t audio_is_running(void);
+
+/// @brief Get the number of active audio channels in the current topology.
+/// @return Active channel count, or 0 before initialization.
+uint8_t audio_get_nch(void);
+
 /// @brief Get the current sample rate.
 /// @return Sample rate in Hz (set during audio_init)
 uint32_t audio_get_sr(void);
+
+#ifdef AUDIO_TIMING_ENABLE
+/// @brief Reset sampler timing counters.
+void audio_timing_reset(void);
+
+/// @brief Copy current sampler timing counters.
+/// @param timing Destination timing struct.
+void audio_timing_get(audio_timing_t* timing);
+#endif
 
 #endif // FRX_ENABLE_MODULE_AUDIO
 #endif
