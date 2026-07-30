@@ -14,6 +14,7 @@
 #include "sdcard.h"
 #include "sdcard_jccl.h"
 #include "utils.h"
+#include "libfrx_sys.h"
 
 /// @brief Internal data streaming server.
 /// @param p jescore job pointer.
@@ -517,7 +518,7 @@ static inline void __sd_transfer(void* p) {
         }
         xSemaphoreGive(stream_lock);
         if (points_transferred != stream.block_len) { 
-            UTILS_DEBUG_PRINT_PJ(pj, "Data given: %d, transferred: %d", stream.block_len, points_transferred);
+            LIBFRX_SYS_DEBUG_PRINT_PJ(pj, "Data given: %d, transferred: %d", stream.block_len, points_transferred);
             jes_throw_error((jes_err_t)e_syserr_file_generic); 
         }
         __job_set_timing_end(__get_systime_ms(), pj);
