@@ -7,6 +7,10 @@
 #define AUDIO_SERVER_JOB_MEM    (4096)
 #endif
 
+#ifndef AUDIO_CONTROL_JOB_MEM
+#define AUDIO_CONTROL_JOB_MEM   (2048)
+#endif
+
 #ifndef AUDIO_PINGPONG_SAMPLES
 #define AUDIO_PINGPONG_SAMPLES  (1024)
 #endif
@@ -118,11 +122,16 @@
 #define AUDIO_I2S_WARMUP_BLOCKS AUDIO_I2S_DMA_BUF_COUNT
 #endif
 
+#ifndef AUDIO_GAIN_DEFAULT
+#define AUDIO_GAIN_DEFAULT 1.0f
+#endif
+
 #define AUDIO_SETTINGS_CFG_DEFAULT { \
     .sr = AUDIO_SR_DEFAULT, \
     .bps = AUDIO_BPS_DEFAULT, \
     .bclk = AUDIO_PIN_I2S_BCLK, \
-    .ws = AUDIO_PIN_I2S_WS \
+    .ws = AUDIO_PIN_I2S_WS, \
+    .gain = AUDIO_GAIN_DEFAULT \
 }
 
 #define AUDIO_BANKS_CFG_SINGLE_MONO_I { \

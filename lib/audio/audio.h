@@ -52,16 +52,21 @@ typedef enum{
     audio_i2s_ch_stereo = (i2s_channel_fmt_t)I2S_CHANNEL_FMT_RIGHT_LEFT
 }audio_i2s_ch_t;
 
+typedef int32_t audio_sample_base_t;
+typedef float audio_val_base_t;
+
 /// @brief Global audio settings shared by all banks.
 /// @param sr Sampling rate.
 /// @param bps Bit depth.
 /// @param bclk Shared bitclock pin number.
 /// @param ws Shared word select pin number.
+/// @param gain Linear output gain applied by the internal audio callback. 0 mutes, 1 is neutral.
 typedef struct{
     uint32_t sr;
     uint8_t bps;
     int8_t bclk;
     int8_t ws;
+    audio_val_base_t gain;
 }audio_settings_t;
 
 /// @brief Audio bank description. A bank is a stereo block.
@@ -86,9 +91,6 @@ typedef enum{
     AUDIO_CTRL_EVT_SUSPEND,
     AUDIO_CTRL_EVT_SET_CALLBACK                  /// Set new audio callback (via event queue data field)
 }i2s_event_type_ext_t;
-
-typedef int32_t audio_sample_base_t;
-typedef float audio_val_base_t;
 
 /// @brief Sample description in time. All channels run in parallel.
 /// @note Amount of possible channels set by `AUDIO_MAX_NUM_CH`, but
@@ -184,9 +186,17 @@ e_syserr_t audio_init_default(void);
 ///       the event of bank A is considered. 
 void audio_sampler(void* p);
 
-/// @brief Suspend the audio loop for a short amount of time for state transitions. 
-/// @note The length of suspension is set in `AUDIO_I2S_RESTART_MS`
-void audio_suspend_short(void);
+/// @brief Manages jccl-style access to the audio sampler
+/// @param p Pointer to job parameters.
+void audio_ctrl_job(void* p);
+
+/// @brief Start the audio sampler loop.
+/// @return Error code (e_syserr_none on success, e_syserr_driver_fail if launch fails)
+e_syserr_t audio_start(void);
+
+/// @brief Request the audio sampler loop to stop.
+/// @return Error code (e_syserr_none on success, e_syserr_driver_fail if queue full)
+e_syserr_t audio_stop(void);
 
 /// @brief Clear the audio event queue.
 void audio_clear(void);
@@ -197,6 +207,15 @@ void audio_clear(void);
 /// @return Error code (e_syserr_none on success, e_syserr_driver_fail if queue full)
 /// @note Callback change takes effect on next I2S event. Uses queue for thread-safe update.
 e_syserr_t audio_set_callback(audio_cb_t cb);
+
+/// @brief Set linear output gain. Values are clipped to 0..1.
+/// @param gain Linear gain. 0 mutes, 1 is neutral.
+/// @return e_syserr_none.
+e_syserr_t audio_set_gain(audio_val_base_t gain);
+
+/// @brief Get linear output gain.
+/// @return Current linear gain.
+audio_val_base_t audio_get_gain(void);
 
 /// @brief Get the current sample rate.
 /// @return Sample rate in Hz (set during audio_init)

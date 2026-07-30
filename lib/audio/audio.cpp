@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <string.h>
+#include <stdlib.h>
 #include <jescore.h>
 #include <soc/i2s_reg.h>
 #include "audio.h"
@@ -133,6 +134,44 @@ static e_syserr_t __audio_read(audio_bank_t* bank, audio_sample_t* data, audio_s
     return e_syserr_none;
 }
 
+static inline audio_sample_base_t __audio_sample_min(uint8_t bps){
+    return (audio_sample_base_t)(-((int64_t)1 << (bps - 1)));
+}
+
+static inline audio_sample_base_t __audio_sample_max(uint8_t bps){
+    return (audio_sample_base_t)(((int64_t)1 << (bps - 1)) - 1);
+}
+
+static inline audio_sample_base_t __audio_sample_clip(int64_t v, uint8_t bps){
+    audio_sample_base_t min_v = __audio_sample_min(bps);
+    audio_sample_base_t max_v = __audio_sample_max(bps);
+    if(v < min_v) return min_v;
+    if(v > max_v) return max_v;
+    return (audio_sample_base_t)v;
+}
+
+static inline audio_val_base_t __audio_gain_clip(audio_val_base_t gain){
+    if(gain < 0.0f) return 0.0f;
+    if(gain > 1.0f) return 1.0f;
+    return gain;
+}
+
+static void __audio_internal_callback(audio_io_t* iobuf){
+    if(!iobuf || !iobuf->out) return;
+    audio_val_base_t gain = audio_meta.settings.gain;
+    if(gain == 1.0f) return;
+    if(gain <= 0.0f){
+        memset(iobuf->out, 0, sizeof(audio_sample_t) * iobuf->len);
+        return;
+    }
+    for(uint32_t sidx = 0; sidx < iobuf->len; sidx++){
+        for(uint8_t ch = 0; ch < iobuf->nch; ch++){
+            int64_t v = (int64_t)((audio_val_base_t)iobuf->out[sidx].ch[ch] * gain);
+            iobuf->out[sidx].ch[ch] = __audio_sample_clip(v, audio_meta.settings.bps);
+        }
+    }
+}
+
 /// @brief Write audio data to an i2s bank.
 /// @param bank Pointer to bank instance.
 /// @param data Source array for audio samples.
@@ -171,8 +210,14 @@ e_syserr_t audio_init(audio_settings_t settings, audio_bank_t audio_banks[], uin
     if(!AUDIO_BPS_VALID(settings.bps)) return e_syserr_param;
     if(!audio_banks) return e_syserr_param;
     if(num_banks > 2 || num_banks == 0) return e_syserr_param;
+    settings.gain = __audio_gain_clip(settings.gain);
     esp_err_t esp_e;
     e_syserr_t e;
+    job_struct_t* audio_ctrl = __job_get_job_by_name(AUDIO_CONTROL_JOB_NAME);
+    if(!audio_ctrl){
+        jes_err_t je = jes_register_job(AUDIO_CONTROL_JOB_NAME, AUDIO_CONTROL_JOB_MEM, 1, audio_ctrl_job, 0, 1);
+        if(je != e_err_no_err && je != e_err_duplicate) return (e_syserr_t)je;
+    }
     job_struct_t* audio_job = __job_get_job_by_name(AUDIO_SERVER_JOB_NAME);
     if(!audio_job){
         jes_err_t je = jes_register_job(AUDIO_SERVER_JOB_NAME, AUDIO_SERVER_JOB_MEM, 1, audio_sampler, 1, 1);
@@ -191,14 +236,8 @@ e_syserr_t audio_init(audio_settings_t settings, audio_bank_t audio_banks[], uin
         xQueueAddToSet(audio_meta.audio_evt_qlist[audio_ctrl_queue_idx], audio_meta.audio_evt_qset);
     }
 
-    uint8_t relaunch_sampler = 0;
     if(audio_job->instances){
-        relaunch_sampler = 1;
-        i2s_event_t evt;
-        evt.type = (i2s_event_type_t)AUDIO_CTRL_EVT_STOP;
-        if(xQueueSend(audio_meta.audio_evt_qlist[audio_ctrl_queue_idx], &evt, pdMS_TO_TICKS(AUDIO_SAMPLER_STOP_TIMEOUT_MS)) != pdPASS){
-            return e_syserr_driver_fail;
-        }
+        if(audio_stop() != e_syserr_none) return e_syserr_driver_fail;
         uint32_t stop_wait_ms = 0;
         while(audio_job->instances){
             if(stop_wait_ms++ >= AUDIO_SAMPLER_STOP_TIMEOUT_MS) return e_syserr_driver_fail;
@@ -259,16 +298,6 @@ e_syserr_t audio_init(audio_settings_t settings, audio_bank_t audio_banks[], uin
         }
     }
     audio_clear();
-    if(relaunch_sampler){
-        audio_job->error = e_err_no_err;
-        if(jes_launch_job(AUDIO_SERVER_JOB_NAME) != e_err_no_err) return e_syserr_driver_fail;
-        uint32_t start_wait_ms = 0;
-        while(!audio_job->handle){
-            if(audio_job->error != e_err_no_err) return e_syserr_driver_fail;
-            if(start_wait_ms++ >= AUDIO_SAMPLER_STOP_TIMEOUT_MS) return e_syserr_driver_fail;
-            jes_delay_job_ms(1);
-        }
-    }
     return e_syserr_none;
 }
 
@@ -420,6 +449,13 @@ void audio_sampler(void* p){
                 #endif
                 __job_set_timing_end(__get_systime_ms(), pj);
             }
+            #ifdef AUDIO_TIMING_ENABLE
+            uint64_t internal_callback_start_us = audio_timing_now_us();
+            #endif
+            __audio_internal_callback(&io);
+            #ifdef AUDIO_TIMING_ENABLE
+            audio_timing_mark_internal_callback_runtime(&audio_meta.timing, internal_callback_start_us);
+            #endif
             if(io.out){
                 audio_sample_t* scratch = io.in ? io.in : &audio_meta.audio_buf[0];
                 for(uint8_t i = 0; i < tx_bank_count; i++){
@@ -454,6 +490,23 @@ void audio_sampler(void* p){
     }
 }
 
+e_syserr_t audio_start(void){
+    job_struct_t* audio_job = __job_get_job_by_name(AUDIO_SERVER_JOB_NAME);
+    if(!audio_job) return e_syserr_uninitialized;
+    audio_job->error = e_err_no_err;
+    if(jes_launch_job(AUDIO_SERVER_JOB_NAME) != e_err_no_err) return e_syserr_driver_fail;
+    return e_syserr_none;
+}
+
+e_syserr_t audio_stop(void){
+    i2s_event_t evt;
+    evt.type = (i2s_event_type_t)AUDIO_CTRL_EVT_STOP;
+    if(xQueueSend(audio_meta.audio_evt_qlist[audio_ctrl_queue_idx], &evt, pdMS_TO_TICKS(AUDIO_SAMPLER_STOP_TIMEOUT_MS)) != pdPASS){
+        return e_syserr_driver_fail;
+    }
+    return e_syserr_none;
+}
+
 void audio_clear(void){
     if(!audio_meta.audio_evt_qset) return;
     i2s_event_t evt;
@@ -475,6 +528,15 @@ e_syserr_t audio_set_callback(audio_cb_t cb){
     return e_syserr_none;
 }
 
+e_syserr_t audio_set_gain(audio_val_base_t gain){
+    audio_meta.settings.gain = __audio_gain_clip(gain);
+    return e_syserr_none;
+}
+
+audio_val_base_t audio_get_gain(void){
+    return audio_meta.settings.gain;
+}
+
 uint32_t audio_get_sr(void){
     return audio_meta.settings.sr;
 }
@@ -489,5 +551,95 @@ void audio_timing_get(audio_timing_t* timing){
     audio_timing_copy_state(timing, &audio_meta.timing);
 }
 #endif
+
+static inline void __audio_ctrl_print_usage(job_struct_t* pj){
+    while(jes_job_arg_next()){}
+    jes_print_pj(pj, AUDIO_MSG_ERROR_USAGE "\n\r");
+    jes_print_pj(pj, AUDIO_CMDS "\n\r");
+    jes_print_pj(pj, AUDIO_RESTART_USAGE "\n\r");
+}
+
+void audio_ctrl_job(void* p){
+    char* arg = jes_job_arg_next();
+    job_struct_t* pj = (job_struct_t*)p;
+    e_syserr_t e;
+
+    if(!arg){
+        __audio_ctrl_print_usage(pj);
+        return;
+    }
+
+    if(jes_job_is_arg(arg, AUDIO_CMD_RESTART)) {
+        audio_settings_t settings = (audio_settings_t)AUDIO_SETTINGS_CFG_DEFAULT;
+        while((arg = jes_job_arg_next())){
+            char* value = jes_job_arg_next();
+            if(!value){
+                __audio_ctrl_print_usage(pj);
+                return;
+            }
+            if(strcmp(arg, "-sr") == 0){
+                settings.sr = atoi(value);
+            }
+            else if(strcmp(arg, "-bps") == 0){
+                settings.bps = atoi(value);
+            }
+            else if(strcmp(arg, "-gain") == 0){
+                settings.gain = __audio_gain_clip(atof(value));
+            }
+            else{
+                __audio_ctrl_print_usage(pj);
+                return;
+            }
+        }
+        if(audio_meta.__num_banks){
+            if((e = audio_init(settings, audio_meta.banks, audio_meta.__num_banks)) != e_syserr_none){
+                jes_print_pj(pj, AUDIO_MSG_ERROR_ERRNUM "\n\r", e);
+                return;
+            }
+        }
+        else{
+            audio_bank_t banks[] = AUDIO_BANKS_CFG_DEFAULT;
+            if((e = audio_init(settings, banks, audio_i2s_bank_N)) != e_syserr_none){
+                jes_print_pj(pj, AUDIO_MSG_ERROR_ERRNUM "\n\r", e);
+                return;
+            }
+        }
+        if((e = audio_start()) != e_syserr_none){
+            jes_print_pj(pj, AUDIO_MSG_ERROR_ERRNUM "\n\r", e);
+            return;
+        }
+        jes_print_pj(pj, AUDIO_MSG_RESTARTED "\n\r");
+    }
+    else if(jes_job_is_arg(arg, AUDIO_CMD_STOP)) {
+        if((e = audio_stop()) != e_syserr_none){
+            jes_print_pj(pj, AUDIO_MSG_ERROR_ERRNUM "\n\r", e);
+            while(jes_job_arg_next()){}
+            return;
+        }
+        while(jes_job_arg_next()){}
+        jes_print_pj(pj, AUDIO_MSG_STOPPED "\n\r");
+    }
+    else if(jes_job_is_arg(arg, AUDIO_CMD_VOLUME)) {
+        arg = jes_job_arg_next();
+        if(!arg){
+            __audio_ctrl_print_usage(pj);
+            return;
+        }
+        while(jes_job_arg_next()){}
+        audio_set_gain(atof(arg));
+        jes_print_pj(pj, AUDIO_MSG_VOLUME "\n\r", (int)(audio_get_gain() * 1000.0f));
+    }
+    else if(jes_job_is_arg(arg, AUDIO_CMD_MUTE)) {
+        while(jes_job_arg_next()){}
+        audio_set_gain(0.0f);
+        jes_print_pj(pj, AUDIO_MSG_VOLUME "\n\r", (int)(audio_get_gain() * 1000.0f));
+    }
+    else{
+        while(jes_job_arg_next()){}
+        jes_print_pj(pj, AUDIO_MSG_UNKNOWN_CMD "\n\r");
+        jes_print_pj(pj, AUDIO_CMDS "\n\r");
+        jes_print_pj(pj, AUDIO_RESTART_USAGE "\n\r");
+    }
+}
 
 #endif // FRX_ENABLE_MODULE_AUDIO
