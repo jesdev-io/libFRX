@@ -37,8 +37,7 @@ typedef struct{
     audio_sample_t* in;
     audio_sample_t* out;
     uint32_t len;
-    uint8_t nch_in;
-    uint8_t nch_out;
+    uint8_t nch;
 }audio_io_t;
 ```
 
@@ -59,6 +58,7 @@ typedef struct {
     audio_bank_t banks[audio_i2s_bank_N];
     audio_cb_t cb;
     uint8_t __num_banks;
+    volatile uint8_t sampler_suspended;
     #ifdef AUDIO_TIMING_ENABLE
     audio_timing_state_t timing;
     #endif
@@ -75,6 +75,7 @@ Audio meta descriptor. Holds buffer, event queue, global settings and banks.
 | `settings` | Global audio settings instance. |
 | `banks` | Array of bank descriptors holding hardware parameters. |
 | `__num_banks` | Runtime defined bank count. Can't be more than audio_i2s_bank_N, but can be less. |
+| `sampler_suspended` | State of sampler. |
 
 ### `audio_settings_t`
 
@@ -86,6 +87,7 @@ typedef struct{
     uint8_t bps;
     int8_t bclk;
     int8_t ws;
+    audio_val_base_t gain;
 }audio_settings_t;
 ```
 
@@ -97,6 +99,7 @@ Global audio settings shared by all banks.
 | `bps` | Bit depth. |
 | `bclk` | Shared bitclock pin number. |
 | `ws` | Shared word select pin number. |
+| `gain` | Linear output gain applied by the internal audio callback. 0 mutes, 1 is neutral. |
 
 ### `audio_timing_t`
 
@@ -121,6 +124,9 @@ typedef struct{
     uint32_t callback_count;
     uint32_t callback_last_runtime_us;
     uint32_t callback_max_runtime_us;
+    uint32_t internal_callback_count;
+    uint32_t internal_callback_last_runtime_us;
+    uint32_t internal_callback_max_runtime_us;
     uint32_t write_count;
     uint32_t write_last_runtime_us;
     uint32_t write_max_runtime_us;
@@ -271,6 +277,44 @@ void audio_clear(void);
 
 Clear the audio event queue.
 
+### `audio_ctrl_job`
+
+_Source: `lib/audio/audio.h`_
+
+```cpp
+void audio_ctrl_job(void* p);
+```
+
+Manages jccl-style access to the audio sampler
+
+| Parameter | Description |
+|---|---|
+| `p` | Pointer to job parameters. |
+
+### `audio_get_gain`
+
+_Source: `lib/audio/audio.h`_
+
+```cpp
+audio_val_base_t audio_get_gain(void);
+```
+
+Get linear output gain.
+
+**Returns:** Current linear gain.
+
+### `audio_get_nch`
+
+_Source: `lib/audio/audio.h`_
+
+```cpp
+uint8_t audio_get_nch(void);
+```
+
+Get the number of active audio channels in the current topology.
+
+**Returns:** Active channel count, or 0 before initialization.
+
 ### `audio_get_sr`
 
 _Source: `lib/audio/audio.h`_
@@ -317,6 +361,18 @@ Initializes the I2S audio interface with default values.
 
 > **Note:** The default audio config is AUDIO_BANKS_CFG_SINGLE_STEREO_IO
 
+### `audio_is_running`
+
+_Source: `lib/audio/audio.h`_
+
+```cpp
+uint8_t audio_is_running(void);
+```
+
+Check whether the audio sampler job has a running instance.
+
+**Returns:** 1 when the sampler is running, otherwise 0.
+
 ### `audio_sampler`
 
 _Source: `lib/audio/audio.h`_
@@ -351,17 +407,45 @@ Set the audio callback function.
 
 > **Note:** Callback change takes effect on next I2S event. Uses queue for thread-safe update.
 
-### `audio_suspend_short`
+### `audio_set_gain`
 
 _Source: `lib/audio/audio.h`_
 
 ```cpp
-void audio_suspend_short(void);
+e_syserr_t audio_set_gain(audio_val_base_t gain);
 ```
 
-Suspend the audio loop for a short amount of time for state transitions.
+Set linear output gain. Values are clipped to 0..1.
 
-> **Note:** The length of suspension is set in `AUDIO_I2S_RESTART_MS`
+| Parameter | Description |
+|---|---|
+| `gain` | Linear gain. 0 mutes, 1 is neutral. |
+
+**Returns:** e_syserr_none.
+
+### `audio_start`
+
+_Source: `lib/audio/audio.h`_
+
+```cpp
+e_syserr_t audio_start(void);
+```
+
+Start the audio sampler loop.
+
+**Returns:** Error code (e_syserr_none on success, e_syserr_driver_fail if launch fails)
+
+### `audio_stop`
+
+_Source: `lib/audio/audio.h`_
+
+```cpp
+e_syserr_t audio_stop(void);
+```
+
+Request the audio sampler loop to stop.
+
+**Returns:** Error code (e_syserr_none on success, e_syserr_driver_fail if queue full)
 
 ### `audio_timing_get`
 
