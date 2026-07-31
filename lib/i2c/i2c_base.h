@@ -7,32 +7,8 @@
 #include <jescore.h>
 #include "syserr.h"
 #include <driver/i2c.h>
-
-// REQUIRED: Projects MUST define in platformio.ini (see PIN_DEFS.md)
-// No defaults - each project has different hardware
-#ifndef I2C_BASE_SCL
-#error "I2C_BASE_SCL must be defined in platformio.ini (see PIN_DEFS.md)"
-#endif
-
-#ifndef I2C_BASE_SDA
-#error "I2C_BASE_SDA must be defined in platformio.ini (see PIN_DEFS.md)"
-#endif
-
-#ifndef I2C_BASE_NUM
-#error "I2C_BASE_NUM must be defined in platformio.ini (see PIN_DEFS.md)"
-#endif
-
-#ifndef I2C_BASE_SPEED
-#define I2C_BASE_SPEED  100000
-#endif
-
-#ifndef I2C_BASE_BUS_TXRX_TIMEOUT
-#define I2C_BASE_BUS_TXRX_TIMEOUT pdMS_TO_TICKS(1000)
-#endif
-
-#ifndef I2C_BASE_BUS_LOCK_TIMEOUT
-#define I2C_BASE_BUS_LOCK_TIMEOUT pdMS_TO_TICKS(1000)
-#endif
+#include "i2c_base_default_cfg.h"
+#include "i2c_base_jccl.h"
 
 e_syserr_t i2c_base_init(uint8_t scl, uint8_t sda, uint32_t speed);
 

@@ -29,8 +29,8 @@ e_syserr_t i2c_base_init(uint8_t scl, uint8_t sda, uint32_t speed){
     if(ee != ESP_OK) return e_syserr_driver_fail;
     ee = i2c_driver_install(I2C_BASE_NUM, I2C_MODE_MASTER, 0, 0, 0);
     if(ee != ESP_OK) return e_syserr_driver_fail;
-    jes_err_t je = jes_register_job("i2cscan", 2048, 1, i2c_base_scan_job, 0, 1);
-    if (je != e_err_no_err) return (e_syserr_t)je;
+    jes_err_t je = jes_register_job(I2C_BASE_SCAN_JOB_NAME, I2C_BASE_SCAN_JOB_MEM, 1, i2c_base_scan_job, 0, 1);
+    if (je != e_err_no_err && je != e_err_duplicate) return (e_syserr_t)je;
     init = 1;
     return e_syserr_none;
 }
@@ -92,12 +92,12 @@ int32_t i2c_base_scan_bus(uint8_t *found_devices, uint32_t max_devices, TickType
 
 void i2c_base_scan_job(void* p) {
     job_struct_t* pj = (job_struct_t*)p; 
-    jes_print_pj(pj, "Scanning for I2C devices...\n\r");
-    uint8_t found_devices[32];
-    int32_t device_count = i2c_base_scan_bus(found_devices, 32, I2C_BASE_BUS_TXRX_TIMEOUT);
-    jes_print_pj(pj, "Found %d devices:\n\r", device_count);
+    jes_print_pj(pj, I2C_BASE_MSG_SCAN_START "\n\r");
+    uint8_t found_devices[I2C_BASE_SCAN_MAX_DEVICES];
+    int32_t device_count = i2c_base_scan_bus(found_devices, I2C_BASE_SCAN_MAX_DEVICES, I2C_BASE_BUS_TXRX_TIMEOUT);
+    jes_print_pj(pj, I2C_BASE_MSG_SCAN_FOUND "\n\r", device_count);
     for(uint8_t i = 0; i < device_count; i++){
-        jes_print_pj(pj, "@ 0x%X\n\r", (uint32_t)found_devices[i]);
+        jes_print_pj(pj, I2C_BASE_MSG_SCAN_ADDR "\n\r", (uint32_t)found_devices[i]);
     }
 }
 
