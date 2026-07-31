@@ -15,6 +15,8 @@ synthesis, external flash, external time-keeping and [`jescore`](https://github.
 
 ## Before you continue... 🔆
 
+`libFRX` is easiest to use with PlatformIO, because module enable flags and board-specific macros fit naturally into `platformio.ini` environments. Classical ESP-IDF or Arduino integration is possible too: add the library sources and define the same macros in your build system. This documentation focuses on the PlatformIO path and does not provide a separate classical-build guide.
+
 `libFRX` is not just a set of static function calls. It is a real-time runtime based on [`jescore`](https://github.com/jesdev-io/jescore/wiki), the runtime control layer used by the examples and CLI adapters. It lets firmware expose named jobs over a serial command interface, so a recorder can be inspected and controlled from a host computer without adding a custom UI first. It in turn runs with [FreeRTOS](https://www.freertos.org/Documentation/00-Overview). 
 
 `libFRX` modules can be used directly from firmware code, but `jescore` support is what makes them convenient to drive from [`jescorecli`](https://github.com/jesdev-io/jescorecli). That way, testing, automation and UI-backend glue are a piece of cake.

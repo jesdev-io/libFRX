@@ -7,16 +7,41 @@ process sample blocks at the callback seam. The Implementation keeps DMA events,
 queue sets, packing/unpacking, gain, timing counters, and CLI control local to
 the module.
 
-## Enable this module
+!!! tip "Quickstart"
+    Enable the module and define the default audio topology/pins in your PlatformIO environment. Replace the pin numbers with your board routing; the bank-B pins are only needed for `AUDIO_MAX_NUM_CH > 2`, but are shown here so every audio pin macro is visible.
 
-```ini
-build_flags =
-    -DFRX_ENABLE_MODULE_AUDIO
-```
+    ```ini
+    build_flags =
+        -DFRX_ENABLE_MODULE_AUDIO
+        -DAUDIO_BANKS_CFG_DEFAULT=AUDIO_BANKS_CFG_SINGLE_STEREO_IO
+        -DAUDIO_PIN_I2S_BCLK=15
+        -DAUDIO_PIN_I2S_WS=17
+        -DAUDIO_PIN_I2S_IN_A=16
+        -DAUDIO_PIN_I2S_OUT_A=6
+        -DAUDIO_PIN_I2S_IN_B=7
+        -DAUDIO_PIN_I2S_OUT_B=8
+    ```
 
-Dependencies: none.
+    Then set a callback, initialize the default topology, and start the sampler from firmware code:
 
-See [Configuration and defaults](configuration.md) for build-flag defaults, required hardware flags, and the relation between `audio_init(...)` and `audio_init_default()`.
+    ```cpp
+    #include "audio.h"
+
+    static void audio_callback(audio_io_t* io) {
+    }
+
+    void setup() {
+        audio_init_default();
+        audio_set_callback(audio_callback);
+        audio_start();
+    }
+    ```
+
+    See [Configuration and defaults](configuration.md) for the full build-flag/defaults model.
+
+## Example
+
+See the [audio demo application](../examples/audio_demo.md) for a minimal `jescore`-controlled firmware entry point.
 
 ## Design model
 
@@ -84,7 +109,9 @@ critical path costs**.
 
 The timing plots in `docs/media/` visualize this stack for tested hardware.
 
-## Lifecycle
+## Audio API
+
+Public callable functions for initialization, stream lifecycle, callback/control state, and diagnostics.
 
 ::: api audio_init
 
@@ -124,40 +151,12 @@ Clears queued audio events by draining the active queues from the queue set. Use
 this at explicit reset/recovery seams or around initialization, not inside the
 realtime callback path.
 
-## Realtime callback seam
-
-::: api audio_io_t
-
-`audio_io_t` is the main audio processing Interface. User DSP receives block
-input and writes block output here; the Implementation owns DMA, queue handling,
-packing, and unpacking.
-
 ::: api audio_set_callback
 
 The callback must be realtime-safe: no blocking I/O, no heap allocation, no long
 critical sections, and complete before the audio block deadline. The timing probe
 reports this callback separately so callback cost can be distinguished from I2S
 read/write overhead.
-
-::: api audio_sampler
-
-This is the internal sampler loop and `jescore` job. Application code should not
-call it directly; use `audio_start()`, `audio_stop()`, and
-`audio_set_callback()`.
-
-The sampler sets up ping-pong processing, clears stale events on entry, waits on
-the queue set, drains ready queue messages, handles control events, matches I2S
-RX/TX events to banks, updates timing counters when enabled, and processes a
-block once the required sides are ready. It exits only through the control stop
-event.
-
-## Runtime control
-
-::: api audio_ctrl_job
-
-This is the `jescore`/CLI Adapter. It exposes operational control without making
-the CLI parser part of the realtime audio path. Current control commands cover
-status, restart/reconfiguration, gain/volume, and stop.
 
 ::: api audio_set_gain
 
@@ -184,13 +183,6 @@ for callbacks that need to adapt to mono/stereo/four-channel configurations.
 Use this to derive block deadlines and DSP coefficients from the actual running
 sample rate.
 
-## Timing diagnostics
-
-::: api audio_timing_t
-
-Timing counters are diagnostic data, not audio data. They let tests and plots
-separate block cadence, read/write overhead, callback cost, and headroom.
-
 ::: api audio_timing_reset
 
 Reset before a measurement window so plots and assertions describe a specific
@@ -202,7 +194,20 @@ Copy counters out of the audio module for tests, CLI status, and plotting. The
 plotting script uses these values to show how the timing stack fits into the
 block budget.
 
-## Configuration and topology types
+## Audio Types
+
+Public structs, enums, unions, and callback typedefs used to describe audio data, topology, settings, and diagnostics.
+
+::: api audio_io_t
+
+`audio_io_t` is the main audio processing Interface. User DSP receives block
+input and writes block output here; the Implementation owns DMA, queue handling,
+packing, and unpacking.
+
+::: api audio_timing_t
+
+Timing counters are diagnostic data, not audio data. They let tests and plots
+separate block cadence, read/write overhead, callback cost, and headroom.
 
 ::: api audio_settings_t
 
@@ -235,6 +240,60 @@ Channel naming inside a bank.
 ::: api i2s_event_type_ext_t
 
 Extended event tags used by the audio Implementation for queue/event handling.
+
+## Audio Jobs
+
+FreeRTOS/`jescore` job entry points. These are runnable tasks rather than ordinary application API calls.
+
+::: api audio_sampler
+
+This is the internal sampler loop and `jescore` job. Application code should not
+call it directly; use `audio_start()`, `audio_stop()`, and
+`audio_set_callback()`.
+
+The sampler sets up ping-pong processing, clears stale events on entry, waits on
+the queue set, drains ready queue messages, handles control events, matches I2S
+RX/TX events to banks, updates timing counters when enabled, and processes a
+block once the required sides are ready. It exits only through the control stop
+event.
+
+::: api audio_ctrl_job
+
+This is the `jescore`/CLI Adapter. It exposes operational control without making
+the CLI parser part of the realtime audio path. Current control commands cover
+status, restart/reconfiguration, gain/volume, and stop.
+
+## Audio Macros
+
+User-facing audio macros are grouped by purpose. Define overrides in `build_flags` before the library headers are compiled.
+
+| Macro | Purpose |
+|---|---|
+| `FRX_ENABLE_MODULE_AUDIO` | Includes the audio module in the build. |
+| `AUDIO_PIN_I2S_BCLK`, `AUDIO_PIN_I2S_WS` | Required shared I2S clock pins. |
+| `AUDIO_PIN_I2S_IN_A`, `AUDIO_PIN_I2S_OUT_A` | Required bank-A data pins. |
+| `AUDIO_PIN_I2S_IN_B`, `AUDIO_PIN_I2S_OUT_B` | Required bank-B data pins when `AUDIO_MAX_NUM_CH > 2`. |
+| `AUDIO_MAX_NUM_CH` | Maximum channel count compiled into audio sample/value unions. |
+| `AUDIO_BANKS_CFG_DEFAULT` | Default bank topology consumed by `audio_init_default()`. |
+| `AUDIO_BANKS_CFG_SINGLE_MONO_I`, `AUDIO_BANKS_CFG_SINGLE_MONO_O`, `AUDIO_BANKS_CFG_SINGLE_MONO_IO` | Single-bank mono topology presets. |
+| `AUDIO_BANKS_CFG_SINGLE_STEREO_I`, `AUDIO_BANKS_CFG_SINGLE_STEREO_O`, `AUDIO_BANKS_CFG_SINGLE_STEREO_IO` | Single-bank stereo topology presets. |
+| `AUDIO_BANKS_CFG_SINGLE_MONO_SINGLE_STEREO_I`, `AUDIO_BANKS_CFG_SINGLE_MONO_SINGLE_STEREO_O`, `AUDIO_BANKS_CFG_SINGLE_MONO_SINGLE_STEREO_IO` | Mixed mono/stereo two-bank topology presets. |
+| `AUDIO_BANKS_CFG_DOUBLE_STEREO_I`, `AUDIO_BANKS_CFG_DOUBLE_STEREO_O`, `AUDIO_BANKS_CFG_DOUBLE_STEREO_IO` | Two-bank stereo topology presets. |
+| `AUDIO_SETTINGS_CFG_DEFAULT` | Default `audio_settings_t` initializer. |
+| `AUDIO_SR_DEFAULT`, `AUDIO_SR_44100`, `AUDIO_SR_48000`, `AUDIO_SR_96000`, `AUDIO_SR_MAX` | Sample-rate defaults and accepted named rates. |
+| `AUDIO_BPS_DEFAULT` | Default bit depth. |
+| `AUDIO_GAIN_DEFAULT` | Default linear output gain. |
+| `AUDIO_TIMING_ENABLE` | Enables audio timing structs/functions and sampler timing probes. |
+| `AUDIO_PINGPONG_SAMPLES`, `AUDIO_BLOCK_SAMPLES` | Audio buffer and processing block sizes. |
+| `AUDIO_I2S_DMA_BUF_COUNT`, `AUDIO_EVT_QUEUE_LEN` | I2S DMA/event queue sizing. |
+| `AUDIO_I2S_RESTART_MS`, `AUDIO_SAMPLER_STOP_TIMEOUT_MS`, `AUDIO_I2S_IO_TIMEOUT_MS` | Restart, stop, and I/O timeout values. |
+| `AUDIO_I2S_READ_TIMEOUT_TICKS`, `AUDIO_I2S_WRITE_TIMEOUT_TICKS` | FreeRTOS tick-form I/O timeouts. |
+| `AUDIO_I2S_CLOCK_SETTLE_MS`, `AUDIO_I2S_WARMUP_BLOCKS` | Clock-settle and DMA warmup behavior. |
+| `AUDIO_SERVER_JOB_MEM`, `AUDIO_CONTROL_JOB_MEM` | `jescore` job stack sizes. |
+| `AUDIO_SERVER_JOB_NAME`, `AUDIO_CONTROL_JOB_NAME` | `jescore` job names. |
+| `AUDIO_CMD_RESTART`, `AUDIO_CMD_STOP`, `AUDIO_CMD_VOLUME`, `AUDIO_CMD_MUTE`, `AUDIO_CMD_STATUS` | CLI command strings. |
+| `AUDIO_OPT_SR`, `AUDIO_OPT_SR_DASH`, `AUDIO_OPT_BPS`, `AUDIO_OPT_BPS_DASH`, `AUDIO_OPT_GAIN`, `AUDIO_OPT_GAIN_DASH` | CLI option strings. |
+| `AUDIO_CMDS`, `AUDIO_RESTART_USAGE`, `AUDIO_MSG_UNKNOWN_CMD`, `AUDIO_MSG_OFFLINE`, `AUDIO_MSG_ERROR_USAGE`, `AUDIO_MSG_ERROR_ERRNUM`, `AUDIO_MSG_RESTARTED`, `AUDIO_MSG_STOPPED`, `AUDIO_MSG_VOLUME`, `AUDIO_MSG_STATUS` | CLI help/status/error text. |
 
 ## Internal implementation notes
 

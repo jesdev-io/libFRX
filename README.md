@@ -16,6 +16,8 @@ enable and supplies board-specific pins and policy.
 
 ## Add to a PlatformIO project
 
+`libFRX` is designed to be most convenient in PlatformIO, where module enable flags and board-specific macros can live in one environment. It can also be used in a classic ESP-IDF/Arduino build by adding the sources and defining the same macros yourself, but this repository does not maintain a separate guide for that path.
+
 ```ini
 lib_deps =
     https://github.com/jesdev-io/libFRX.git
