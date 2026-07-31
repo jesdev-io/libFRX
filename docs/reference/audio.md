@@ -1,0 +1,280 @@
+# Audio
+
+The audio module owns the ESP32 I2S service loop, performs I2S bank-wide reads and
+writes, and exposes a managed realtime callback Interface. The public API is
+small on purpose: applications configure topology, start/stop the sampler, and
+process sample blocks at the callback seam. The Implementation keeps DMA events,
+queue sets, packing/unpacking, gain, timing counters, and CLI control local to
+the module.
+
+## Enable this module
+
+```ini
+build_flags =
+    -DFRX_ENABLE_MODULE_AUDIO
+```
+
+Dependencies: none.
+
+See [Configuration and defaults](configuration.md) for build-flag defaults, required hardware flags, and the relation between `audio_init(...)` and `audio_init_default()`.
+
+## Design model
+
+Audio is block-based. I2S DMA produces/consumes buffers, the sampler job waits on
+I2S event queues plus a control queue, and the user callback receives an
+`audio_io_t` block once the relevant input/output sides are ready. The callback is your realm: as long as you stay within block time, you can do whatever you want with your new audio block. **How much is that?** Generally, $\frac{\mathrm{blocksize}}{\mathrm{samplerate}} - T_o$ where $T_o$ is the overhead the system has internally. 
+
+There's also much work being done under the hood. The module handles input and output sync, but also inter-bank sync. As the platform's I2S banks are independent, they are also not synchronized. With this module you can rest assured that the audio you get is perfectly in sync across channels and inputs and outputs (output of course lags one block behind, it can't see into the future). The audio sampler is a loop that you control via the public API, which in turn sends control notifications to the loop, effectively steering it. 
+
+The depth of the module comes from hiding the awkward parts:
+
+- ESP-IDF queue/event handling
+- bank-to-channel mapping
+- byte packing and sign extension for different bit depths
+- ping-pong buffer ownership
+- start/stop/restart coordination
+- realtime timing probes
+- `jescore`/CLI control messages
+
+## Channels and banks
+
+The ESP32 has two I2S instances. In this module, an I2S instance is treated as a
+stereo **bank**. A full two-bank topology can therefore represent four channels,
+with each active bank providing mono or stereo input/output according to its
+configuration. If input and output are both enabled, the active input and output
+channel count is expected to match. A disabled side contributes zero channels.
+
+!!! success "TL;DR"
+    x input channels means x output channels. If the stream is not duplex, one direction has 0 channels. Something like 2 input 1 output is not possible.
+
+
+## Channel sync
+
+The intended sync model is hardware-led. One I2S bank may act as host and another
+as device chained to the same BCLK/WS timing. Because ESP32 pins can be read and
+written at the same time, this can synchronize channels more tightly than a
+software-only scheme. A configuration without a host is also possible, but then
+an external codec or MCU must provide BCLK and WS.
+
+## Queues and control path
+
+The audio module shares queue usage with ESP-IDF and its own control path. It
+keeps the I2S event queues and the custom audio control queue in one FreeRTOS
+queue set. The sampler drains ready events in a tight local loop so RX/TX events
+that arrive close together are handled in one processing block.
+
+Control messages such as stop and callback replacement use the control queue.
+This keeps `jescore`/CLI control outside the realtime callback, while still letting
+external tools manage the audio module deterministically.
+
+## Timing model
+
+The timing counters separate **when audio wakes up** from **how much work the
+critical path costs**.
+
+- **cadence**: time between sampler processing opportunities; this should match
+  the audio block period.
+- **read**: I2S read plus unpack/transpose overhead.
+- **callback**: user callback runtime.
+- **internal callback**: module-owned post-callback processing such as gain.
+- **write**: pack/transpose plus I2S write overhead.
+- **other**: scheduler/queue/bookkeeping time not attributed to those measured
+  segments.
+- **headroom**: block period minus worst observed process span.
+
+The timing plots in `docs/media/` visualize this stack for tested hardware.
+
+## Lifecycle
+
+::: api audio_init
+
+Use this when the caller needs explicit sample rate, bit depth, bank topology, or
+non-default channel layout. `audio_init()` checks settings, registers or finds
+the sampler job, creates the queue set if needed, installs the control queue,
+deinitializes/reinitializes active banks, applies settings, resets timing, warms
+up DMA, clears stale events, and relaunches the sampler after a restart if it had
+been running before.
+
+If the sampler is running during reinitialization, a stop event is sent and the
+call waits for shutdown. This makes reconfiguration deterministic instead of
+leaving old I2S events racing against new topology.
+
+::: api audio_init_default
+
+Default initialization is for bring-up, demos, and tests. Defaults live in
+`lib/audio/audio_default_cfg.h` and can be overridden with PlatformIO build flag
+macros. Production code should prefer `audio_init()` when topology and sample
+rate are part of the application contract.
+
+::: api audio_start
+
+`audio_start()` is idempotent. It is safe for CLI/API control paths to call it
+when audio is already running; the important behavior is that one sampler loop is
+running afterwards, not that a new one is created.
+
+::: api audio_stop
+
+`audio_stop()` is idempotent and waits for the sampler job to exit. This matters
+for reproducible tests and for reconfiguration: stop before changing topology or
+sample-rate state.
+
+::: api audio_clear
+
+Clears queued audio events by draining the active queues from the queue set. Use
+this at explicit reset/recovery seams or around initialization, not inside the
+realtime callback path.
+
+## Realtime callback seam
+
+::: api audio_io_t
+
+`audio_io_t` is the main audio processing Interface. User DSP receives block
+input and writes block output here; the Implementation owns DMA, queue handling,
+packing, and unpacking.
+
+::: api audio_set_callback
+
+The callback must be realtime-safe: no blocking I/O, no heap allocation, no long
+critical sections, and complete before the audio block deadline. The timing probe
+reports this callback separately so callback cost can be distinguished from I2S
+read/write overhead.
+
+::: api audio_sampler
+
+This is the internal sampler loop and `jescore` job. Application code should not
+call it directly; use `audio_start()`, `audio_stop()`, and
+`audio_set_callback()`.
+
+The sampler sets up ping-pong processing, clears stale events on entry, waits on
+the queue set, drains ready queue messages, handles control events, matches I2S
+RX/TX events to banks, updates timing counters when enabled, and processes a
+block once the required sides are ready. It exits only through the control stop
+event.
+
+## Runtime control
+
+::: api audio_ctrl_job
+
+This is the `jescore`/CLI Adapter. It exposes operational control without making
+the CLI parser part of the realtime audio path. Current control commands cover
+status, restart/reconfiguration, gain/volume, and stop.
+
+::: api audio_set_gain
+
+Gain is a simple post-callback linear output gain and is clipped to the safe
+range. Use callback DSP for application-specific mixing, metering, or nonlinear
+processing.
+
+::: api audio_get_gain
+
+Use for status displays, CLI/API confirmation, and tests.
+
+::: api audio_is_running
+
+Use this for control/status surfaces. It answers whether the sampler job has a
+running instance; it is not a realtime synchronization primitive.
+
+::: api audio_get_nch
+
+Returns the active channel count inferred from current topology. This is useful
+for callbacks that need to adapt to mono/stereo/four-channel configurations.
+
+::: api audio_get_sr
+
+Use this to derive block deadlines and DSP coefficients from the actual running
+sample rate.
+
+## Timing diagnostics
+
+::: api audio_timing_t
+
+Timing counters are diagnostic data, not audio data. They let tests and plots
+separate block cadence, read/write overhead, callback cost, and headroom.
+
+::: api audio_timing_reset
+
+Reset before a measurement window so plots and assertions describe a specific
+operation rather than all time since boot.
+
+::: api audio_timing_get
+
+Copy counters out of the audio module for tests, CLI status, and plotting. The
+plotting script uses these values to show how the timing stack fits into the
+block budget.
+
+## Configuration and topology types
+
+::: api audio_settings_t
+
+Global settings shared by all configured banks: sample rate, bit depth, and
+related format constraints.
+
+::: api audio_bank_t
+
+A bank describes a stereo I2S block. It records which ESP32 I2S peripheral is
+used, whether the bank is host/device, pins, direction, and channel mode.
+
+::: api audio_meta_t
+
+Internal descriptor tying together buffers, queues, settings, and banks.
+Application code should prefer the public lifecycle/control functions instead of
+using this as an external state object.
+
+::: api audio_i2s_bank_t
+
+Bank naming for ESP32 I2S peripherals.
+
+::: api audio_i2s_direction_t
+
+Direction naming for input/output bank endpoints.
+
+::: api audio_i2s_ch_t
+
+Channel naming inside a bank.
+
+::: api i2s_event_type_ext_t
+
+Extended event tags used by the audio Implementation for queue/event handling.
+
+## Internal implementation notes
+
+These helpers are intentionally not part of the public user Interface, but they
+explain what is happening inside the module.
+
+### `__audio_bank_init(...)`
+
+Installs the ESP-IDF I2S driver for one bank. It validates settings, translates
+`audio_bank_t` plus `audio_settings_t` into ESP-I2S configuration, sets pins,
+creates/attaches the bank event queue, and adds that queue to the shared queue
+set.
+
+### `__audio_bank_deinit(...)`
+
+Uninstalls the I2S driver for one bank. If the bank event queue exists, queued
+events are cleared, the queue is removed from the queue set, and the handle is
+reset.
+
+### `__audio_bank_nch(...)`
+
+Converts the bank channel enum into a concrete channel count. The enum values are
+not directly `1` and `2` because they abstract ESP-IDF channel configuration
+macros.
+
+### `__audio_sample_from_bytes(...)` and `__audio_sample_to_bytes(...)`
+
+Convert between raw DMA bytes and `audio_sample_base_t` values for the active bit
+depth. These helpers operate at one sample position, not by casting a whole DMA
+buffer.
+
+### `__audio_read(...)`
+
+Reads one I2S bank with a bounded timeout, converts raw DMA bytes into sample
+values, and soft-transposes bank-local channel data into the module's
+multichannel block layout. The scratch buffer may be dedicated memory or alias
+the final output buffer to save memory.
+
+### `__audio_write(...)`
+
+The reverse path of `__audio_read(...)`: converts the module's multichannel block
+layout into bank-local raw DMA bytes and writes them to I2S with a bounded
+timeout.

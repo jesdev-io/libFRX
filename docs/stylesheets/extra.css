@@ -1,0 +1,80 @@
+:root {
+  /* Corporate theming hooks: replace these values when the visual identity settles. */
+  --frx-primary: #00b8a9;
+  --frx-primary-dark: #008f86;
+  --frx-accent: #5b7cfa;
+  --frx-ink: #101828;
+  --frx-muted: #667085;
+  --frx-card-border: rgba(91, 124, 250, 0.18);
+}
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: var(--frx-ink);
+  --md-primary-fg-color--light: #23314f;
+  --md-primary-fg-color--dark: #060b16;
+  --md-accent-fg-color: var(--frx-primary-dark);
+  --md-typeset-a-color: var(--frx-primary-dark);
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #0b1220;
+  --md-accent-fg-color: var(--frx-primary);
+  --md-typeset-a-color: var(--frx-primary);
+}
+
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+  height: 1.7rem;
+}
+
+.md-typeset h1 {
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.md-typeset h2 {
+  letter-spacing: -0.015em;
+}
+
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid > .card {
+  border-color: var(--frx-card-border);
+  border-radius: 0.9rem;
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.md-typeset .grid.cards > ul > li:hover,
+.md-typeset .grid > .card:hover {
+  border-color: color-mix(in srgb, var(--frx-accent), transparent 45%);
+  box-shadow: 0 0.35rem 1.2rem rgba(16, 24, 40, 0.08);
+  transform: translateY(-1px);
+}
+
+.md-typeset code {
+  border-radius: 0.25rem;
+}
+
+.md-typeset .frx-chip {
+  display: inline-block;
+  margin: 0 0.25rem 0.35rem 0;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--frx-card-border);
+  border-radius: 999px;
+  color: var(--frx-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.md-typeset .frx-hero {
+  margin: 1.2rem 0 1.6rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--frx-card-border);
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--frx-accent), transparent 82%), transparent 42%),
+    linear-gradient(135deg, color-mix(in srgb, var(--frx-primary), transparent 90%), transparent);
+}
+
+.md-typeset .frx-hero p:last-child {
+  margin-bottom: 0;
+}
