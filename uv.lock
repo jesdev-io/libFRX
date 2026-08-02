@@ -986,17 +986,23 @@ dev = [
     { name = "pytest-asyncio", version = "1.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pytest-asyncio", version = "1.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
+docs = [
+    { name = "mkdocs-git-latest-changes-plugin" },
+    { name = "mkdocs-material" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "jescorecli", git = "https://github.com/jesdev-io/jescorecli.git" },
     { name = "matplotlib", marker = "extra == 'dev'" },
     { name = "mkdocs-git-latest-changes-plugin", marker = "extra == 'dev'" },
+    { name = "mkdocs-git-latest-changes-plugin", marker = "extra == 'docs'" },
     { name = "mkdocs-material", marker = "extra == 'dev'" },
+    { name = "mkdocs-material", marker = "extra == 'docs'" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["docs", "dev"]
 
 [[package]]
 name = "markdown"
