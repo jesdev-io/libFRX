@@ -12,4 +12,5 @@ They are intentionally thin:
 Available examples:
 
 - [Audio demo app](audio_demo.md)
+- [RTC demo app](rtc_demo.md)
 - [SD card demo app](sdcard_demo.md)
