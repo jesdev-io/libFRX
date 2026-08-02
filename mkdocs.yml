@@ -11,33 +11,92 @@ exclude_docs: |
 
 theme:
   name: material
+  logo: assets/jesdev-avatar.png
+  favicon: assets/jesdev-avatar.png
+  palette:
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
   features:
     - navigation.sections
     - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - navigation.path
+    - toc.follow
     - content.code.copy
+    - content.tabs.link
+    - content.tooltips
     - search.suggest
+    - search.highlight
 
 nav:
   - Home: index.md
-  - Modules:
-      - Audio: modules/audio.md
+  - Latest changes: latest_changes.md
   - API Reference:
       - Overview: reference/index.md
-      - Generated Index: reference/generated/index.md
-      - Audio: reference/generated/audio_api.md
-      - DSP: reference/generated/dsp_frx_api.md
-      - External Flash: reference/generated/ext_flash_api.md
-      - I2C: reference/generated/i2c_api.md
-      - SD Card: reference/generated/sdcard_api.md
-      - Synth: reference/generated/synth_api.md
-      - Utils: reference/generated/utils_api.md
-      - WAV: reference/generated/wav_api.md
+      - Configuration: reference/configuration.md
+      - Audio: reference/audio.md
+      - DSP: reference/dsp_frx.md
+      - External Flash: reference/ext_flash.md
+      - I2C: reference/i2c.md
+      - SD Card: reference/sdcard.md
+      - Synth: reference/synth.md
+      - Utils: reference/utils.md
+      - WAV: reference/wav.md
+  - Examples:
+      - Overview: examples/index.md
+      - Audio Demo App: examples/audio_demo.md
+      - SD Card Demo App: examples/sdcard_demo.md
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - tables
   - toc:
       permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.highlight
   - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
   - pymdownx.snippets:
       base_path: docs
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;'
+  - git-latest-changes:
+      repo_vendor: github
+      history_limit: 12
+      timestamp_format: "%Y-%m-%d"
+      table_features:
+        - timestamp
+        - author
+        - message
+        - page_path_link
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js

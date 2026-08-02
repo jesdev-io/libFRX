@@ -20,7 +20,7 @@ requires-python = ">=3.9"
 "Repository" = "https://github.com/jesdev-io/libFRX"
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio", "mkdocs-material", "matplotlib"]
+dev = ["pytest", "pytest-asyncio", "mkdocs-material", "mkdocs-git-latest-changes-plugin", "matplotlib"]
 
 [tool.pytest.ini_options]
 python_files = "tests/*.py"
