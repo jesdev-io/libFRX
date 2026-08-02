@@ -1,11 +1,21 @@
 #include <Arduino.h>
-#include <string.h>
 #include "jescore.h"
 #include "audio.h"
 
 static inline void feedthrough_cb(audio_io_t* iobuf){
     if(!iobuf->in || !iobuf->out) return;
-    memcpy(iobuf->out, iobuf->in, sizeof(audio_sample_t) * iobuf->len);
+
+    for(uint32_t i = 0; i < iobuf->len; i++){
+        for(uint8_t ch = 0; ch < iobuf->nch; ch++){
+            audio_sample_base_t sample = iobuf->in[i].ch[ch];
+
+            // Insert single-channel per-sample DSP here if needed.
+            // DSP FRX helpers can also operate on multichannel audio_sample_t arrays,
+            // so this double loop expansion is optional.
+
+            iobuf->out[i].ch[ch] = sample;
+        }
+    }
 }
 
 void setup(){

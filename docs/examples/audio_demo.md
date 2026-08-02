@@ -6,12 +6,23 @@ This is a `jescore` compatibility-layer demo for the audio module. The firmware
 initializes the default I2S audio topology, installs a feedthrough callback, and
 starts the audio sampler loop.
 
-The callback copies each input block to the corresponding output block:
+The callback copies each input sample to the corresponding output sample with an explicit per-sample/per-channel loop. This is intentionally more verbose than `memcpy(...)`: it gives you the exact seam where per-sample DSP routines can be inserted. DSP FRX helpers can also accept multichannel `audio_sample_t` values, so the inner channel loop is optional for DSP paths that operate on a whole sample at once.
 
 ```cpp
 static inline void feedthrough_cb(audio_io_t* iobuf){
     if(!iobuf->in || !iobuf->out) return;
-    memcpy(iobuf->out, iobuf->in, sizeof(audio_sample_t) * iobuf->len);
+
+    for(uint32_t i = 0; i < iobuf->len; i++){
+        for(uint8_t ch = 0; ch < iobuf->nch; ch++){
+            audio_sample_base_t sample = iobuf->in[i].ch[ch];
+
+            // Insert single-channel per-sample DSP here if needed.
+            // DSP FRX helpers can also operate on multichannel audio_sample_t arrays,
+            // so this double loop expansion is optional.
+
+            iobuf->out[i].ch[ch] = sample;
+        }
+    }
 }
 ```
 
