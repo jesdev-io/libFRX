@@ -48,7 +48,9 @@ nav:
       - Audio: reference/audio.md
       - DSP: reference/dsp_frx.md
       - External Flash: reference/ext_flash.md
-      - I2C: reference/i2c.md
+      - I2C:
+          - Base: reference/i2c.md
+          - DS3231 RTC: reference/i2c/rtc_ds3231.md
       - SD Card: reference/sdcard.md
       - Synth: reference/synth.md
       - Utils: reference/utils.md
@@ -56,6 +58,7 @@ nav:
   - Examples:
       - Overview: examples/index.md
       - Audio Demo App: examples/audio_demo.md
+      - RTC Demo App: examples/rtc_demo.md
       - SD Card Demo App: examples/sdcard_demo.md
 
 markdown_extensions:
