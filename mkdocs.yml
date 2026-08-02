@@ -11,8 +11,8 @@ exclude_docs: |
 
 theme:
   name: material
-  logo: assets/logo.svg
-  favicon: assets/logo.svg
+  logo: assets/jesdev-avatar.png
+  favicon: assets/jesdev-avatar.png
   palette:
     - scheme: default
       primary: custom
@@ -41,6 +41,7 @@ theme:
 
 nav:
   - Home: index.md
+  - Latest changes: latest_changes.md
   - API Reference:
       - Overview: reference/index.md
       - Configuration: reference/configuration.md
@@ -83,6 +84,15 @@ markdown_extensions:
 plugins:
   - search:
       separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;'
+  - git-latest-changes:
+      repo_vendor: github
+      history_limit: 12
+      timestamp_format: "%Y-%m-%d"
+      table_features:
+        - timestamp
+        - author
+        - message
+        - page_path_link
 
 extra_css:
   - stylesheets/extra.css

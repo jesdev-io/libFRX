@@ -85,7 +85,7 @@
   --md-primary-fg-color--light: #333333;
   --md-primary-fg-color--dark: #000000;
   --md-accent-fg-color: var(--frx-orange-hot);
-  --md-typeset-a-color: var(--frx-primary-dark);
+  --md-typeset-a-color: #b85f00;
   --md-code-bg-color: #f7f7f7;
   --md-code-fg-color: #2d2d2d;
 }
@@ -149,12 +149,32 @@
   letter-spacing: -0.02em;
 }
 
+.md-typeset h2::after {
+  content: "";
+  display: block;
+  width: 3rem;
+  height: 0.18rem;
+  margin-top: 0.35rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--frx-orange), rgba(255, 127, 0, 0));
+}
+
 .md-typeset a {
   font-weight: 600;
 }
 
 .md-typeset a:hover {
   color: var(--frx-orange-hot);
+}
+
+.md-nav__link--active,
+.md-nav__link:is(:focus, :hover) {
+  color: var(--frx-orange-hot);
+}
+
+.md-tabs__link--active,
+.md-tabs__link:hover {
+  color: var(--frx-orange);
 }
 
 .md-typeset .grid.cards > ul > li,
@@ -180,8 +200,12 @@
 }
 
 .md-typeset table:not([class]) th {
-  background: var(--frx-ink);
+  background: linear-gradient(90deg, var(--frx-ink), color-mix(in srgb, var(--frx-ink), var(--frx-orange) 18%));
   color: var(--frx-white);
+}
+
+.md-typeset table:not([class]) tr:hover {
+  background-color: rgba(255, 178, 0, 0.055);
 }
 
 .md-typeset .admonition,
