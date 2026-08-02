@@ -169,12 +169,12 @@ void ef_job(void* p){
     
 
     if(arg == NULL){
-        jes_print("No command specified for ef job.\n\r");
+        jes_print(EF_MSG_ERROR_NO_CMD "\n\r");
         return;
     }
     
 
-    if(strcmp(arg, "rom") == 0){
+    if(strcmp(arg, EF_CMD_ROM) == 0){
         e_syserr_t e;
         ext_flash_rom_t rom;
         memset(&rom, 0, sizeof(ext_flash_rom_t));
@@ -182,18 +182,18 @@ void ef_job(void* p){
 
         e = ef_read_rom(&rom);
         if(e != e_syserr_none){
-            jes_print("Error while reading external flash ROM!\n\r");
+            jes_print(EF_MSG_ERROR_READ_ROM "\n\r");
             return;
         }
         e = ef_read_id(&pid);
         if(e != e_syserr_none){
-            jes_print("Error while reading external flash PID!\n\r");
+            jes_print(EF_MSG_ERROR_READ_PID "\n\r");
             return;
         }
-        jes_print("PID: 0x%X\n\r", pid);
-        jes_print("SN: %d\n\r", rom.sn);
-        jes_print("FW: %d.%d%c\n\r", rom.fw_ver_maj, rom.fw_ver_min, rom.fw_ver_mod);
-        jes_print("UT: %d\n\r", rom.last_flash);
+        jes_print(EF_MSG_PID_FORMAT "\n\r", pid);
+        jes_print(EF_MSG_SN_FORMAT "\n\r", rom.sn);
+        jes_print(EF_MSG_FW_FORMAT "\n\r", rom.fw_ver_maj, rom.fw_ver_min, rom.fw_ver_mod);
+        jes_print(EF_MSG_UT_FORMAT "\n\r", rom.last_flash);
     }
 }
 

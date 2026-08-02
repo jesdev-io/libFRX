@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include "syserr.h"
+#include "ext_flash_jccl.h"
 
 // REQUIRED: Projects MUST define in platformio.ini (see PIN_DEFS.md)
 // No defaults - each project has different hardware

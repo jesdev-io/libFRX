@@ -12,5 +12,7 @@ They are intentionally thin:
 Available examples:
 
 - [Audio demo app](audio_demo.md)
+- [External flash demo app](ext_flash_demo.md)
+- [I2C demo app](i2c_demo.md)
 - [RTC demo app](rtc_demo.md)
 - [SD card demo app](sdcard_demo.md)
