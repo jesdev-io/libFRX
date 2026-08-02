@@ -41,7 +41,7 @@ void test_rtc_get_time(void){
     TEST_ASSERT_LESS_OR_EQUAL_INT(31, timeinfo.tm_mday);
     TEST_ASSERT_GREATER_OR_EQUAL_INT(0, timeinfo.tm_mon);
     TEST_ASSERT_LESS_OR_EQUAL_INT(11, timeinfo.tm_mon);
-    TEST_ASSERT_GREATER_OR_EQUAL_INT(100, timeinfo.tm_year);
+    TEST_ASSERT_EQUAL_INT(FR2_LAST_FLASH_YEAR, timeinfo.tm_year + 1900);
 }
 
 void test_rtc_get_temp(void){
