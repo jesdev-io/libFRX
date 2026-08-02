@@ -21,6 +21,7 @@ unity/
 # Docs
 doc/
 hw/
+.mkdocs-build/
 
 # OS
 .DS_Store

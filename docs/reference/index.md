@@ -1,14 +1,15 @@
 # API Reference
 
-Generated reference pages are produced from Doxygen-style comments in public headers.
-
-Regenerate with:
+`libFRX` offers standalone and co-dependent modules for various tasks associated with audio field recording. Each module needs to be enabled with a build flag at compile time in a manual compile call or in the `build_flags` section of a PlatformIO environment:
 
 ```bash
-python3 shared/scripts/gen_api_docs.py
+-DFRX_ENABLE_MODULE_<module>
 ```
 
-- [Audio](generated/audio_api.md)
+Each module's documentation holds exact function/struct/macro argument, member, and return descriptions and additional information on why they exist and how they can be used within a greater scope. Be aware that some modules depend on others, meaning you will not be able to utilize the **WAV** module if you don't enable a system for them to be written to, in this case the **SD Card** module. 
+
+- [Configuration and defaults](configuration.md)
+- [Audio](audio.md)
 - [DSP](generated/dsp_frx_api.md)
 - [External Flash](generated/ext_flash_api.md)
 - [I2C](generated/i2c_api.md)

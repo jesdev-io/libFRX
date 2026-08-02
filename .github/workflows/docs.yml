@@ -2,7 +2,7 @@ name: docs
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 permissions:
@@ -13,11 +13,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      - run: pip install mkdocs-material
+      - run: pip install ".[docs]"
 
-      - run: mkdocs gh-deploy --force --config-file docs/mkdocs.yml
+      - name: Build expanded MkDocs site
+        run: python shared/scripts/build_mkdocs_site.py --build
+
+      - name: Deploy GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        run: >-
+          mkdocs gh-deploy
+          --force
+          --config-file .mkdocs-build/prepared/mkdocs.yml
+          --site-dir .mkdocs-build/site

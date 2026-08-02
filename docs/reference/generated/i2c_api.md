@@ -30,8 +30,8 @@ _Source: `lib/i2c/i2c_base.h`_
 void i2c_base_scan_job(void* p);
 ```
 
-jescore job handler for I2C slave detection
+`jescore` job handler for I2C slave detection
 
 | Parameter | Description |
 |---|---|
-| `p` | jescore job parameters |
+| `p` | `jescore` job parameters |

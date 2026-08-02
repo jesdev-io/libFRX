@@ -113,7 +113,7 @@ Translate CLI args to the synth struct.
 
 | Parameter | Description |
 |---|---|
-| `synth_args` | Whitespace delimited args from jescore. |
+| `synth_args` | Whitespace delimited args from `jescore`. |
 | `pcfg` | Pointer to synth config to be set. |
 
 **Returns:** Error code.
