@@ -261,9 +261,11 @@
 }
 
 .md-typeset .frx-hero::before {
-  content: "Need it? Make it.";
-  display: block;
-  margin-bottom: 0.5rem;
+  content: none;
+}
+
+.md-typeset .frx-hero-kicker {
+  margin: 0 0 0.5rem;
   color: var(--frx-ink);
   font-size: 0.78rem;
   font-weight: 800;
@@ -271,7 +273,11 @@
   text-transform: uppercase;
 }
 
-[data-md-color-scheme="slate"] .md-typeset .frx-hero::before {
+.md-typeset .frx-hero-kicker a {
+  color: var(--frx-orange-hot);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .frx-hero-kicker {
   color: var(--frx-white);
 }
 
