@@ -1,0 +1,104 @@
+name: Build CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-ci:
+    name: Build CI (${{ matrix.environment }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Demo firmware: compile only, do not upload or flash.
+          - environment: frx_demo_sdcard
+            command: pio run -e frx_demo_sdcard
+          - environment: frx_demo_audio
+            command: pio run -e frx_demo_audio
+          - environment: frx_demo_ext_flash
+            command: pio run -e frx_demo_ext_flash
+          - environment: frx_demo_i2c
+            command: pio run -e frx_demo_i2c
+          - environment: frx_demo_rtc
+            command: pio run -e frx_demo_rtc
+
+          # Hardware-backed test firmware: compile only, do not upload or flash.
+          - environment: frx_test_audio
+            command: pio test -e frx_test_audio --without-uploading --without-testing
+          - environment: frx_test_dsp_frx
+            command: pio test -e frx_test_dsp_frx --without-uploading --without-testing
+          - environment: frx_test_ext_flash
+            command: pio test -e frx_test_ext_flash --without-uploading --without-testing
+          - environment: frx_test_i2c
+            command: pio test -e frx_test_i2c --without-uploading --without-testing
+          - environment: frx_test_rtc
+            command: pio test -e frx_test_rtc --without-uploading --without-testing
+          - environment: frx_test_sdcard
+            command: pio test -e frx_test_sdcard --without-uploading --without-testing
+          - environment: fr1_test_sdcard_spi
+            command: pio test -e fr1_test_sdcard_spi --without-uploading --without-testing
+          - environment: frx_test_synth
+            command: pio test -e frx_test_synth --without-uploading --without-testing
+          - environment: frx_test_utils
+            command: pio test -e frx_test_utils --without-uploading --without-testing
+          - environment: frx_test_wav
+            command: pio test -e frx_test_wav --without-uploading --without-testing
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio/.cache
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini', 'library.json') }}
+          restore-keys: |
+            ${{ runner.os }}-platformio-
+
+      - name: Install PlatformIO
+        run: python -m pip install --upgrade platformio
+
+      - name: Build CI - compile ${{ matrix.environment }}
+        run: ${{ matrix.command }}
+
+      # Future deploy CI/CCI consumption:
+      # - Trigger the deploy workflow from workflow_run on "Build CI" and use
+      #   github.event.workflow_run.id as the build run id.
+      # - Download this artifact with actions/download-artifact using:
+      #     name: firmware-${{ matrix.environment }}
+      #     path: .pio/build/${{ matrix.environment }}
+      #     run-id: <build-run-id>
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      # - Human/browser link for artifacts from a build run:
+      #     https://github.com/${{ github.repository }}/actions/runs/<build-run-id>/artifacts
+      # - API discovery link:
+      #     https://api.github.com/repos/${{ github.repository }}/actions/runs/<build-run-id>/artifacts?name=firmware-${{ matrix.environment }}
+      - name: Build CI - upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.environment }}
+          path: .pio/build/${{ matrix.environment }}/
+          if-no-files-found: error
+          retention-days: 7
