@@ -2,8 +2,10 @@
 
 `libFRX` is configured at compile time. A firmware enables the modules it needs
 and supplies board-specific pins, bus modes, and topology through build flags.
-This keeps the reusable driver code in `lib/` independent of any one recorder
-variant.
+This keeps the reusable driver code in `lib/` independent and focused on the concrete hardware instance running `libFRX`.
+
+!!! info "Compile time vs run time"
+    **Compile time** configurations determine what is being baked into the firmware. Anything missing here can't be magically added in the program. **Run time** can chose what kind of features it picks from anything that was actually compiled by the compile time configuration. An example: If 2 audio channels were configured at compile time, then routing 4 of them will be impossible; just using 1 is of course up to the run time.
 
 ## Enable modules
 
@@ -65,16 +67,19 @@ Complex modules keep compile-time defaults in a dedicated
 Examples:
 
 - `lib/audio/audio_default_cfg.h`
+- `lib/i2c/i2c_base_default_cfg.h`
+- `lib/i2c/i2c_rtc_ds3231_default_cfg.h`
 - `lib/sdcard/sdcard_default_cfg.h`
 
 Typical contents include:
 
-- job memory sizes
+- `jescore` job memory sizes
 - buffer sizes
 - default sample rates or bit depths
 - timeout values
 - derived configuration macros
 - compile-time validation checks
+- default naming schemes
 
 ## Runtime init vs default init
 
@@ -87,6 +92,9 @@ This means a firmware can choose between runtime configuration and build-flag co
 
 If a build flag is not provided, the corresponding `<module>_default_cfg.h` fallback is used where a safe fallback exists. Required hardware settings still fail at compile time until the consuming firmware defines them.
 
+!!! question "Why have 2 configurations?"
+    The philosophy here is that some API accesses are semantically bound by hardware. Hardware is usually fixed, so it should have a fixed feature interface. It's no good to have a software call enabling a module that the hardware does not even provide. The configuration mimics that: Compile time config for fixed hardware, run time config for dynamic setting of that hardware where possible.
+
 ## CLI string headers
 
 modules with `jescore` CLI commands keep job names, command names, and output
@@ -96,7 +104,15 @@ command strings and lets CLI tests derive expected strings from one source.
 Examples:
 
 - `lib/audio/audio_jccl.h`
+- `lib/ext_flash/ext_flash_jccl.h`
+- `lib/i2c/i2c_base_jccl.h`
+- `lib/i2c/i2c_rtc_ds3231_jccl.h`
 - `lib/sdcard/sdcard_jccl.h`
+
+See the example CLI call sections for why these shared string headers matter in
+practice: [Audio demo](../examples/audio_demo.md#cli-calls), [External flash demo](../examples/ext_flash_demo.md#cli-calls),
+[I2C demo](../examples/i2c_demo.md#cli-calls), [RTC demo](../examples/rtc_demo.md#cli-calls), and
+[SD card demo](../examples/sdcard_demo.md#cli-calls).
 
 ## Intended configuration flow
 
