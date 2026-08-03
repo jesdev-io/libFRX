@@ -1,8 +1,6 @@
 # DSP FRX
 
-DSP helper functions for measurement, cleanup, and lightweight signal math.
-
-This page combines generated API reference cards with module-specific notes.
+The DSP module provides multichannel sample accepting algorithms which are commonly used in signal processing, audio and field recording. 
 
 !!! tip "Quickstart"
     Enable DSP FRX and its audio dependency. Because `dsp_frx.h` depends on `audio.h`, the audio module's required topology/pin flags must also be present.
