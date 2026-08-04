@@ -21,6 +21,20 @@ build_flags =
 A disabled module contributes no public declarations or implementation code to
 the build. This lets small firmware variants include only the tools they use.
 
+Some shared support headers are enabled by the modules that need them rather than
+by their own public toggle. For example, `lib/audio/audio_types.h` provides the
+`audio_sample_t`, `audio_val_t`, and `audio_io_t` data shapes when either
+`FRX_ENABLE_MODULE_AUDIO` or `FRX_ENABLE_MODULE_DSP_FRX` is defined. This keeps
+DSP-only firmware free of audio hardware pin requirements while preserving the
+same sample/value types for audio callbacks and DSP helpers.
+
+The hierarchy for audio channel topology is still explicit: `AUDIO_MAX_NUM_CH`
+defines the compile-time size of the shared sample/value types and which I2S bank
+symbols/configurations exist. Two-bank configurations such as
+`AUDIO_BANKS_CFG_DOUBLE_STEREO_IO` therefore also need `-DAUDIO_MAX_NUM_CH=4`
+and the bank-B pin macros. Setting only `AUDIO_BANKS_CFG_DEFAULT=AUDIO_BANKS_CFG_DOUBLE_STEREO_IO`
+without increasing `AUDIO_MAX_NUM_CH` is an invalid configuration.
+
 ## Required hardware flags
 
 Some settings cannot have safe library defaults because every board routes pins

@@ -3,12 +3,8 @@
 
 #ifdef FRX_ENABLE_MODULE_DSP_FRX
 
-#ifndef FRX_ENABLE_MODULE_AUDIO
-#error "DSP FRX module requires AUDIO module to be enabled. Define FRX_ENABLE_MODULE_AUDIO."
-#endif
-
 #include <math.h>
-#include "audio.h"
+#include "audio_types.h"
 
 #define DSP_FRX_SQUARE(x) ((x) * (x))
 

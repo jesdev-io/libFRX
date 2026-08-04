@@ -314,7 +314,7 @@ e_syserr_t audio_init(audio_settings_t settings, audio_bank_t audio_banks[], uin
 
 e_syserr_t audio_init_default(void){
     audio_settings_t settings = AUDIO_SETTINGS_CFG_DEFAULT;
-    audio_bank_t banks[] = AUDIO_BANKS_CFG_SINGLE_STEREO_IO;
+    audio_bank_t banks[] = AUDIO_BANKS_CFG_DEFAULT;
     return audio_init(settings, banks, audio_i2s_bank_N);
 }
 

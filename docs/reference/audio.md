@@ -196,7 +196,12 @@ block budget.
 
 ## Audio Types
 
-Public structs, enums, unions, and callback typedefs used to describe audio data, topology, settings, and diagnostics.
+`audio_sample_t`, `audio_val_t`, `audio_io_t`, and `audio_cb_t` live in `lib/audio/audio_types.h`.
+That shared type header is available when either `FRX_ENABLE_MODULE_AUDIO` or
+`FRX_ENABLE_MODULE_DSP_FRX` is enabled, so DSP-only firmware can use the sample/value
+shape without enabling the I2S sampler or defining audio hardware pins.
+
+The remaining public structs, enums, unions, and callback typedefs describe audio data, topology, settings, and diagnostics.
 
 ::: api audio_io_t
 

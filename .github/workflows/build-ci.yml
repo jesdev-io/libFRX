@@ -40,6 +40,8 @@ jobs:
             command: pio test -e frx_test_audio --without-uploading --without-testing
           - environment: frx_test_dsp_frx
             command: pio test -e frx_test_dsp_frx --without-uploading --without-testing
+          - environment: frx_test_dsp_frx_standalone
+            command: pio test -e frx_test_dsp_frx_standalone --without-uploading --without-testing
           - environment: frx_test_ext_flash
             command: pio test -e frx_test_ext_flash --without-uploading --without-testing
           - environment: frx_test_i2c

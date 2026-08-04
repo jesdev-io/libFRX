@@ -35,18 +35,6 @@
 #define AUDIO_EVT_QUEUE_LEN     (AUDIO_I2S_DMA_BUF_COUNT*2)
 #endif
 
-#ifndef AUDIO_MAX_NUM_CH
-#define AUDIO_MAX_NUM_CH        2
-#endif
-
-#if AUDIO_MAX_NUM_CH>4
-#error "Hardware platform only supports up to 4 channels"
-#endif
-
-#if AUDIO_MAX_NUM_CH<1
-#error "Audio module needs at least one audio channel to be active!"
-#endif   
-
 #ifndef AUDIO_PIN_I2S_BCLK
 #error "AUDIO_PIN_I2S_BCLK must be defined in platformio.ini"
 #endif
@@ -215,7 +203,7 @@
         .ch = audio_i2s_ch_stereo, \
         .data_rx = AUDIO_PIN_I2S_IN_B, \
         .data_tx = -1 \
-    }
+    } \
 }
 
 #define AUDIO_BANKS_CFG_SINGLE_MONO_SINGLE_STEREO_O { \
@@ -232,7 +220,7 @@
         .ch = audio_i2s_ch_stereo, \
         .data_rx = -1, \
         .data_tx = AUDIO_PIN_I2S_OUT_B \
-    }
+    } \
 }
 
 #define AUDIO_BANKS_CFG_SINGLE_MONO_SINGLE_STEREO_IO { \
@@ -249,7 +237,7 @@
         .ch = audio_i2s_ch_stereo, \
         .data_rx = AUDIO_PIN_I2S_IN_B, \
         .data_tx = AUDIO_PIN_I2S_OUT_B \
-    }
+    } \
 }
 
 
@@ -267,7 +255,7 @@
         .ch = audio_i2s_ch_stereo, \
         .data_rx = AUDIO_PIN_I2S_IN_B, \
         .data_tx = -1 \
-    }
+    } \
 }
 
 #define AUDIO_BANKS_CFG_DOUBLE_STEREO_O { \
@@ -284,7 +272,7 @@
         .ch = audio_i2s_ch_stereo, \
         .data_rx = -1, \
         .data_tx = AUDIO_PIN_I2S_OUT_B \
-    }
+    } \
 }
 
 #define AUDIO_BANKS_CFG_DOUBLE_STEREO_IO { \
@@ -301,14 +289,14 @@
         .ch = audio_i2s_ch_stereo, \
         .data_rx = AUDIO_PIN_I2S_IN_B, \
         .data_tx = AUDIO_PIN_I2S_OUT_B \
-    }
+    } \
 }
+
+#endif // #if AUDIO_MAX_NUM_CH > 2
 
 #ifndef AUDIO_BANKS_CFG_DEFAULT
 #define AUDIO_BANKS_CFG_DEFAULT AUDIO_BANKS_CFG_SINGLE_STEREO_IO
 #endif 
-
-#endif // #if AUDIO_MAX_NUM_CH > 2
 
 #endif // FRX_ENABLE_MODULE_AUDIO
 

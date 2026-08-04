@@ -30,7 +30,7 @@ Audio bank description. A bank is a stereo block.
 
 ### `audio_io_t`
 
-_Source: `lib/audio/audio.h`_
+_Source: `lib/audio/audio_types.h`_
 
 ```cpp
 typedef struct{
@@ -41,9 +41,9 @@ typedef struct{
 }audio_io_t;
 ```
 
-Audio data IO struct. Represents the callback interface.
+Audio data IO struct. Represents the audio callback interface and reusable block-DSP data seam.
 
-> **Note:** If only input or only output is configured, the other poiner is NULL.
+> **Note:** If only input or only output is configured, the other pointer is NULL.
 
 ### `audio_meta_t`
 
@@ -141,7 +141,7 @@ Audio sampler timing counters for diagnosing DMA/event jitter.
 
 ### `_chx`
 
-_Source: `lib/audio/audio.h`_
+_Source: `lib/audio/audio_types.h`_
 
 ```cpp
 typedef union {
@@ -167,7 +167,7 @@ Sample description in time. All channels run in parallel.
 
 ### `_chx`
 
-_Source: `lib/audio/audio.h`_
+_Source: `lib/audio/audio_types.h`_
 
 ```cpp
 typedef union {

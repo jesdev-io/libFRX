@@ -2,7 +2,7 @@
 #include <jescore.h>
 #include <unity.h>
 #include "dsp_frx.h"
-#include "audio.h"
+#include "audio_types.h"
 #include "syserr.h"
 
 const float bhaskara_delta = 0.6;
