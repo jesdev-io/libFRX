@@ -67,6 +67,8 @@ typedef struct{
     uint8_t nch;
 }audio_io_t;
 
+/// @brief Callback signature for audio blocks and compatible block-DSP users.
+/// @param iobuf Shared block IO buffer.
 typedef void (*audio_cb_t)(audio_io_t* iobuf);
 
 #endif // defined(FRX_ENABLE_MODULE_AUDIO) || defined(FRX_ENABLE_MODULE_DSP_FRX)
