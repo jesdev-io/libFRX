@@ -46,6 +46,7 @@ nav:
       - Overview: reference/index.md
       - Configuration: reference/configuration.md
       - Audio: reference/audio.md
+      - Audio Types: reference/audio_types.md
       - DSP: reference/dsp_frx.md
       - External Flash: reference/ext_flash.md
       - I2C:
@@ -62,6 +63,8 @@ nav:
       - I2C Demo App: examples/i2c_demo.md
       - RTC Demo App: examples/rtc_demo.md
       - SD Card Demo App: examples/sdcard_demo.md
+  - Misc:
+      - Non-PlatformIO macro inputs: reference/non_platformio_macros.md
 
 markdown_extensions:
   - admonition

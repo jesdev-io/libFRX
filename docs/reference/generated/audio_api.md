@@ -139,7 +139,7 @@ Audio sampler timing counters for diagnosing DMA/event jitter.
 
 ## Unions
 
-### `_chx`
+### `audio_sample_t`
 
 _Source: `lib/audio/audio_types.h`_
 
@@ -161,11 +161,11 @@ typedef union {
 }audio_sample_t;
 ```
 
-Sample description in time. All channels run in parallel.
+Shared sample description in time. All channels run in parallel.
 
 > **Note:** Amount of possible channels set by `AUDIO_MAX_NUM_CH`, but the runtime can use less than that if wanted.
 
-### `_chx`
+### `audio_val_t`
 
 _Source: `lib/audio/audio_types.h`_
 
@@ -264,6 +264,22 @@ typedef enum{
 Extended I2S event types for libFRX audio module
 
 > **Note:** These extend ESP-IDF's I2S events (I2S_EVENT_MAX + 1 and above)
+
+## Typedefs
+
+### `audio_cb_t`
+
+_Source: `lib/audio/audio_types.h`_
+
+```cpp
+typedef void (*audio_cb_t)(audio_io_t* iobuf);
+```
+
+Callback signature for audio blocks and compatible block-DSP users.
+
+| Parameter | Description |
+|---|---|
+| `iobuf` | Shared block IO buffer. |
 
 ## Functions
 
