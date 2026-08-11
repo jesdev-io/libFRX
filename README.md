@@ -72,6 +72,28 @@ build_flags =
 | `utils` | Small utility helpers |
 | `syserr` | Shared error enum |
 
+## Build and test repository firmware
+
+The stable entry point is:
+
+```bash
+python3 shared/scripts/test_all_apps.py
+```
+
+It discovers `[env:*]` sections from `platformio.ini`, streams output, writes
+per-step logs under `.pio/build-all-logs/`, and exits nonzero on failure.
+Available wrappers:
+
+```bash
+python3 shared/scripts/build_demo_apps.py             # compile demo firmware only
+python3 shared/scripts/flash_demo_apps_cli_test.py    # flash each demo, then run its pytest CLI test
+python3 shared/scripts/build_test_apps.py             # compile unit-test firmware only
+python3 shared/scripts/test_firmware_apps.py          # upload + run PlatformIO unit tests
+python3 shared/scripts/test_all_apps.py               # combined coffee-break run
+```
+
+Use `--list` with any wrapper to preview the discovered commands.
+
 ## Documentation
 
 User-facing docs are built with MkDocs Material and live in `docs/`:
