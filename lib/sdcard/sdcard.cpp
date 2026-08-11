@@ -25,6 +25,11 @@ static esp_vfs_fat_sdmmc_mount_config_t mount_config;
 static sdmmc_card_t* card = NULL;
 static uint8_t mounted = 0;
 static SemaphoreHandle_t stream_lock = NULL;
+static SemaphoreHandle_t stream_done = NULL;
+static sd_stream_descriptor_t active_stream = {0};
+static volatile uint8_t stream_busy = 0;
+static e_syserr_t stream_last_error = e_syserr_none;
+static uint32_t stream_last_points = 0;
 
 // SPI-specific state
 #ifdef SDCARD_MODE_SPI
@@ -42,7 +47,10 @@ static sdmmc_slot_config_t sdmmc_slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
 /// @brief Initialize SDMMC-specific configuration
 static void __sdcard_config(int32_t max_files, uint32_t max_freq_khz) {
     #ifdef SDCARD_MODE_SDMMC
-    sdmmc_host.flags = SDMMC_HOST_FLAG_4BIT | SDMMC_HOST_FLAG_DEINIT_ARG;
+    sdmmc_host.flags = SDMMC_HOST_FLAG_DEINIT_ARG;
+    #if SDCARD_SDMMC_WIDTH == 4
+    sdmmc_host.flags |= SDMMC_HOST_FLAG_4BIT;
+    #endif
     if (max_freq_khz > SDMMC_FREQ_HIGHSPEED) return;
     if (max_freq_khz != 0) {
         sdmmc_host.max_freq_khz = max_freq_khz;
@@ -55,7 +63,10 @@ static void __sdcard_config(int32_t max_files, uint32_t max_freq_khz) {
     sdmmc_slot_config.d1 = (gpio_num_t)SDCARD_SDMMC_PIN_D1;
     sdmmc_slot_config.d2 = (gpio_num_t)SDCARD_SDMMC_PIN_D2;
     sdmmc_slot_config.d3 = (gpio_num_t)SDCARD_SDMMC_PIN_D3;
-    sdmmc_slot_config.width = 4;
+    sdmmc_slot_config.width = SDCARD_SDMMC_WIDTH;
+    #if SDCARD_SDMMC_INTERNAL_PULLUP
+    sdmmc_slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
+    #endif
 
     mount_config.format_if_mount_failed = false;
     mount_config.max_files = max_files;
@@ -99,6 +110,8 @@ e_syserr_t sd_init(int32_t max_files, uint32_t max_freq_khz) {
     
     stream_lock = xSemaphoreCreateMutex();
     if (stream_lock == NULL) return e_syserr_null;
+    stream_done = xSemaphoreCreateBinary();
+    if (stream_done == NULL) return e_syserr_null;
     jes_err_t je;
     je = jes_register_job(SDCARD_JOB_NAME, 2*4096, 1, sd_job, 0, 1);
     if (je != e_err_no_err) { 
@@ -180,7 +193,7 @@ e_syserr_t sd_create_file(const char* path) {
     if (!mounted) return e_syserr_sdcard_unmnted;
     FILE* file = fopen(path, "w");
     if (file == NULL) return e_syserr_file_generic;
-    fclose(file);
+    if (fclose(file) != 0) return e_syserr_file_generic;
     return e_syserr_none;
 }
 
@@ -205,7 +218,7 @@ e_syserr_t sd_write(void* data, uint16_t type_size, uint32_t len, const char* fn
         fclose(f);
         return e_syserr_oom; 
     }
-    fclose(f);
+    if (fclose(f) != 0) return e_syserr_file_generic;
     return e_syserr_none;
 }
 
@@ -236,7 +249,7 @@ e_syserr_t sd_read(void* data, uint16_t type_size, uint32_t len, const char* fna
         fclose(f);
         return e_syserr_file_eof; 
     }
-    fclose(f);
+    if (fclose(f) != 0) return e_syserr_file_generic;
     return e_syserr_none;
 }
 
@@ -246,33 +259,56 @@ e_syserr_t sd_read_txt(char* data, uint32_t len, const char* fname, uint32_t pos
     return e;
 }
 
-e_syserr_t sd_stream_in(void* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_w) {
+static e_syserr_t __sd_stream_wait(TickType_t timeout) {
+    if (!stream_busy) return stream_last_error;
+    if (xSemaphoreTake(stream_done, timeout) != pdTRUE) return e_syserr_locked;
+    return stream_last_error;
+}
+
+static e_syserr_t __sd_stream_submit(void* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, sd_stream_direction_t direction, uint32_t* points) {
     if (!mounted) return e_syserr_sdcard_unmnted;
     if (f == NULL) return e_syserr_file_generic;
-    static sd_stream_descriptor_t in_stream = {0};
-    in_stream.f = f;
-    in_stream.data = data;
-    in_stream.block_len = len;
-    in_stream.type_in_byte = (bps/8)*nch;
-    in_stream.direction = sd_stream_direction_in;
-    *points_w = len; // Hack for now
-    jes_notify_job(SDCARD_STREAMER_JOB_NAME, &in_stream);
-    return e_syserr_none;
+    if (data == NULL) return e_syserr_null;
+    if (points == NULL) return e_syserr_null;
+    uint32_t type_in_byte = (bps / 8) * nch;
+    if (type_in_byte == 0 || len == 0) return e_syserr_param;
+    if (type_in_byte * len > SDCARD_SD_STREAM_POOL_SIZE) return e_syserr_too_long;
+
+    xSemaphoreTake(stream_lock, portMAX_DELAY);
+    if (stream_busy) {
+        xSemaphoreGive(stream_lock);
+        return e_syserr_locked;
+    }
+    while (xSemaphoreTake(stream_done, 0) == pdTRUE) {}
+    *points = 0;
+    stream_last_points = 0;
+    stream_last_error = e_syserr_none;
+    active_stream.f = f;
+    active_stream.data = data;
+    active_stream.block_len = len;
+    active_stream.type_in_byte = type_in_byte;
+    active_stream.direction = direction;
+    stream_busy = 1;
+    jes_err_t je = jes_notify_job(SDCARD_STREAMER_JOB_NAME, &active_stream);
+    if (je != e_err_no_err) {
+        stream_busy = 0;
+        stream_last_error = (e_syserr_t)je;
+        xSemaphoreGive(stream_lock);
+        return stream_last_error;
+    }
+    xSemaphoreGive(stream_lock);
+
+    e_syserr_t e = __sd_stream_wait(portMAX_DELAY);
+    *points = stream_last_points;
+    return e;
+}
+
+e_syserr_t sd_stream_in(void* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_w) {
+    return __sd_stream_submit(data, len, bps, nch, f, sd_stream_direction_in, points_w);
 }
 
 e_syserr_t sd_stream_out(void* data, uint32_t len, uint8_t bps, uint8_t nch, FILE* f, uint32_t* points_r) {
-    if (!mounted) return e_syserr_sdcard_unmnted;
-    if (f == NULL) return e_syserr_file_generic;
-    static sd_stream_descriptor_t out_stream = {0};
-    out_stream.f = f;
-    out_stream.data = data;
-    out_stream.block_len = len;
-    out_stream.type_in_byte = (bps/8)*nch;
-    out_stream.direction = sd_stream_direction_out;
-    *points_r = len; // Hack for now
-    jes_err_t je = jes_notify_job(SDCARD_STREAMER_JOB_NAME, &out_stream);
-    if(je != e_err_no_err) return (e_syserr_t)je;
-    return e_syserr_none;
+    return __sd_stream_submit(data, len, bps, nch, f, sd_stream_direction_out, points_r);
 }
 
 FILE* sd_stream_open(const char* fname, const char* mode) {
@@ -293,11 +329,15 @@ FILE* sd_stream_write_open(const char* fname) {
     return f;
 }
 
-void sd_stream_close(FILE* f) {
-    if (f == NULL) return;
+e_syserr_t sd_stream_close(FILE* f) {
+    if (f == NULL) return e_syserr_file_generic;
+    e_syserr_t stream_error = __sd_stream_wait(portMAX_DELAY);
     xSemaphoreTake(stream_lock, portMAX_DELAY);
-    fclose(f);
+    int close_ret = fclose(f);
     xSemaphoreGive(stream_lock);
+    if (stream_error != e_syserr_none) return stream_error;
+    if (close_ret != 0) return e_syserr_file_generic;
+    return e_syserr_none;
 }
 
 e_syserr_t sd_ls(const char *dirname, char* pret, uint16_t n_entries, uint16_t len) {
@@ -517,10 +557,18 @@ static inline void __sd_transfer(void* p) {
             points_transferred = fread(local_buf, stream.type_in_byte, stream.block_len, stream.f);
         }
         xSemaphoreGive(stream_lock);
+        e_syserr_t transfer_error = e_syserr_none;
         if (points_transferred != stream.block_len) { 
             LIBFRX_SYS_DEBUG_PRINT_PJ(pj, "Data given: %d, transferred: %d", stream.block_len, points_transferred);
-            jes_throw_error((jes_err_t)e_syserr_file_generic); 
+            transfer_error = e_syserr_file_generic;
+            jes_throw_error((jes_err_t)transfer_error); 
         }
+        xSemaphoreTake(stream_lock, portMAX_DELAY);
+        stream_last_points = points_transferred;
+        stream_last_error = transfer_error;
+        stream_busy = 0;
+        xSemaphoreGive(stream_done);
+        xSemaphoreGive(stream_lock);
         __job_set_timing_end(__get_systime_ms(), pj);
     }
 }

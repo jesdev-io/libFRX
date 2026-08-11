@@ -163,17 +163,17 @@ FILE* f = NULL;
 void test_sd_stream_open(void){
     f = sd_stream_open((char*)SDCARD_BASE_PATH "/" SD_TEST_FNAME_BIN, "rb");
     TEST_ASSERT_NOT_NULL(f);
-    sd_stream_close(f);
+    TEST_ASSERT_EQUAL(e_syserr_none, sd_stream_close(f));
     f = NULL;
     
     f = sd_stream_read_open((char*)SDCARD_BASE_PATH "/" SD_TEST_FNAME_BIN);
     TEST_ASSERT_NOT_NULL(f);
-    sd_stream_close(f);
+    TEST_ASSERT_EQUAL(e_syserr_none, sd_stream_close(f));
     f = NULL;
     
     f = sd_stream_write_open((char*)SDCARD_BASE_PATH "/" SD_TEST_FNAME_BIN);
     TEST_ASSERT_NOT_NULL(f);
-    sd_stream_close(f);
+    TEST_ASSERT_EQUAL(e_syserr_none, sd_stream_close(f));
     f = NULL;
 }
 
@@ -199,7 +199,7 @@ void test_sd_stream_write(void){
         TEST_ASSERT_EQUAL(e_syserr_none, e);
         TEST_ASSERT_EQUAL(2, pw);
     }
-    sd_stream_close(f);
+    TEST_ASSERT_EQUAL(e_syserr_none, sd_stream_close(f));
     f = NULL;
     TEST_ASSERT_EQUAL(e_err_no_err, jes_error_get(SDCARD_STREAMER_JOB_NAME));
 }
@@ -223,7 +223,7 @@ void test_sd_stream_read(void){
             TEST_ASSERT_EQUAL_MEMORY(data_chunk, data, 4);
         }
     }
-    sd_stream_close(f);
+    TEST_ASSERT_EQUAL(e_syserr_none, sd_stream_close(f));
     f = NULL;
 }
 
