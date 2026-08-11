@@ -23,6 +23,11 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 PIO_INI = ROOT / "platformio.ini"
 LOG_ROOT = ROOT / ".pio" / "build-all-logs"
 
+# Runtime tests that disturb shared hardware state and must be requested explicitly.
+# frx_test_sdcard_spi can leave the single SD-card socket in SPI/card state;
+# power-cycle or reinsert the card before running SDMMC tests afterwards.
+MANUAL_RUNTIME_TEST_ENVS = {"frx_test_sdcard_spi"}
+
 
 class EnvKind(str, Enum):
     DEFAULT = "default"
@@ -135,9 +140,13 @@ def _build_steps(suite: str, patterns: list[str], settle_after_upload_s: float) 
                 add(f"{env.name}:build", ["pio", "test", "-e", env.name, "--without-uploading", "--without-testing"])
 
     def add_test_runs() -> None:
+        explicit_patterns = bool(patterns)
         for env in envs:
-            if env.kind == EnvKind.TEST:
-                add(f"{env.name}:test", ["pio", "test", "-e", env.name])
+            if env.kind != EnvKind.TEST:
+                continue
+            if env.name in MANUAL_RUNTIME_TEST_ENVS and not explicit_patterns:
+                continue
+            add(f"{env.name}:test", ["pio", "test", "-e", env.name])
 
     if suite == "all":
         add_default_builds()

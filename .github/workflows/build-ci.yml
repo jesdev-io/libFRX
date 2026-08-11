@@ -54,8 +54,8 @@ jobs:
             command: pio test -e frx_test_rtc --without-uploading --without-testing
           - environment: frx_test_sdcard
             command: pio test -e frx_test_sdcard --without-uploading --without-testing
-          - environment: fr1_test_sdcard_spi
-            command: pio test -e fr1_test_sdcard_spi --without-uploading --without-testing
+          - environment: frx_test_sdcard_spi
+            command: pio test -e frx_test_sdcard_spi --without-uploading --without-testing
           - environment: frx_test_synth
             command: pio test -e frx_test_synth --without-uploading --without-testing
           - environment: frx_test_utils
