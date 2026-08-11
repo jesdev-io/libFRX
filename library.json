@@ -41,7 +41,6 @@
     },
     "headers": [
       "lib/audio/audio.h",
-      "lib/audio/audio_types.h",
       "lib/dsp_frx/dsp_frx.h",
       "lib/ext_flash/ext_flash.h",
       "lib/i2c/i2c_base.h",
