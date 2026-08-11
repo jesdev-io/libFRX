@@ -94,6 +94,15 @@ python3 shared/scripts/test_all_apps.py               # combined coffee-break ru
 
 Use `--list` with any wrapper to preview the discovered commands.
 
+`frx_test_sdcard_spi` is compile-checked by `build_test_apps.py`, but excluded
+from default runtime suites because it uses the same physical SD-card socket in
+SPI mode and can leave the card in a state that requires power-cycle/reinsert
+before SDMMC tests. Run it explicitly when needed:
+
+```bash
+python3 shared/scripts/test_firmware_apps.py frx_test_sdcard_spi
+```
+
 ## Documentation
 
 User-facing docs are built with MkDocs Material and live in `docs/`:

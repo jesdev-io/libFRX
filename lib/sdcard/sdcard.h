@@ -168,7 +168,8 @@ FILE* sd_stream_write_open(const char* fname);
 
 /// @brief Close an opened file stream.
 /// @param f FILE pointer to opened file.
-void sd_stream_close(FILE* f);
+/// @return Error code. Includes pending stream-transfer and final close/flush state.
+e_syserr_t sd_stream_close(FILE* f);
 
 /// @brief List all files of a folder.
 /// @param dirname Path to directory which contains entries to be listed.

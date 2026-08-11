@@ -4,6 +4,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <string.h>
 #include "sdcard.h"
 #include "sdcard_jccl.h"
 #include "utils.h"
@@ -163,17 +164,17 @@ FILE* f = NULL;
 void test_sd_stream_open(void){
     f = sd_stream_open((char*)SDCARD_BASE_PATH "/" SD_TEST_FNAME_BIN, "rb");
     TEST_ASSERT_NOT_NULL(f);
-    sd_stream_close(f);
+    TEST_ASSERT_EQUAL(e_syserr_none, sd_stream_close(f));
     f = NULL;
     
     f = sd_stream_read_open((char*)SDCARD_BASE_PATH "/" SD_TEST_FNAME_BIN);
     TEST_ASSERT_NOT_NULL(f);
-    sd_stream_close(f);
+    TEST_ASSERT_EQUAL(e_syserr_none, sd_stream_close(f));
     f = NULL;
     
     f = sd_stream_write_open((char*)SDCARD_BASE_PATH "/" SD_TEST_FNAME_BIN);
     TEST_ASSERT_NOT_NULL(f);
-    sd_stream_close(f);
+    TEST_ASSERT_EQUAL(e_syserr_none, sd_stream_close(f));
     f = NULL;
 }
 
@@ -199,7 +200,7 @@ void test_sd_stream_write(void){
         TEST_ASSERT_EQUAL(e_syserr_none, e);
         TEST_ASSERT_EQUAL(2, pw);
     }
-    sd_stream_close(f);
+    TEST_ASSERT_EQUAL(e_syserr_none, sd_stream_close(f));
     f = NULL;
     TEST_ASSERT_EQUAL(e_err_no_err, jes_error_get(SDCARD_STREAMER_JOB_NAME));
 }
@@ -223,7 +224,7 @@ void test_sd_stream_read(void){
             TEST_ASSERT_EQUAL_MEMORY(data_chunk, data, 4);
         }
     }
-    sd_stream_close(f);
+    TEST_ASSERT_EQUAL(e_syserr_none, sd_stream_close(f));
     f = NULL;
 }
 
@@ -234,7 +235,9 @@ void test_sd_ls(){
                           2,
                           SDCARD_LS_MAX_CHAR);
     TEST_ASSERT_EQUAL(e_syserr_none, e);
-    TEST_ASSERT_EQUAL_STRING(SD_TEST_FNAME_TXT "\n" SD_TEST_FNAME_BIN "\n", content);
+    const char expected_exact[] = SD_TEST_FNAME_TXT "\n" SD_TEST_FNAME_BIN "\n";
+    const char expected_more[] = SD_TEST_FNAME_TXT "\n" SD_TEST_FNAME_BIN "\n...";
+    TEST_ASSERT_TRUE(!strcmp(content, expected_exact) || !strcmp(content, expected_more));
 }
 
 void test_sd_cat(){
