@@ -130,13 +130,13 @@ def _classify(decl: str) -> tuple[str, str] | None:
     if not one or one.startswith("#"):
         return None
     if "typedef enum" in one:
-        m = re.search(r"}\s*(\w+)\s*;", one)
+        m = re.search(r"}\s*(\w+)\s*;\s*$", one)
         return ("enum", m.group(1) if m else "anonymous_enum")
     if "typedef struct" in one:
-        m = re.search(r"}\s*(\w+)\s*;", one)
+        m = re.search(r"}\s*(\w+)\s*;\s*$", one)
         return ("struct", m.group(1) if m else "anonymous_struct")
     if "typedef union" in one:
-        m = re.search(r"}\s*(\w+)\s*;", one)
+        m = re.search(r"}\s*(\w+)\s*;\s*$", one)
         return ("union", m.group(1) if m else "anonymous_union")
     if one.startswith("typedef"):
         m = re.search(r"\(\s*\*\s*(\w+)\s*\)", one) or re.search(r"\b(\w+)\s*;\s*$", one)

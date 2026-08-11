@@ -3,18 +3,11 @@
 The DSP module provides multichannel sample accepting algorithms which are commonly used in signal processing, audio and field recording. 
 
 !!! tip "Quickstart"
-    Enable DSP FRX and its audio dependency. Because `dsp_frx.h` depends on `audio.h`, the audio module's required topology/pin flags must also be present.
+    Enable DSP FRX directly. It uses the shared `audio_types.h` sample/value types,
+    but it does not require the audio sampler module or any I2S topology/pin flags.
 
     ```ini
     build_flags =
-        -DFRX_ENABLE_MODULE_AUDIO
-        -DAUDIO_BANKS_CFG_DEFAULT=AUDIO_BANKS_CFG_SINGLE_STEREO_IO
-        -DAUDIO_PIN_I2S_BCLK=15
-        -DAUDIO_PIN_I2S_WS=17
-        -DAUDIO_PIN_I2S_IN_A=16
-        -DAUDIO_PIN_I2S_OUT_A=6
-        -DAUDIO_PIN_I2S_IN_B=7
-        -DAUDIO_PIN_I2S_OUT_B=8
         -DFRX_ENABLE_MODULE_DSP_FRX
     ```
 
@@ -63,8 +56,8 @@ Public helper functions for signal math, level conversion, rolling averages, and
 
 | Macro | Purpose |
 |---|---|
-| `FRX_ENABLE_MODULE_DSP_FRX` | Includes the DSP FRX module in the build. |
-| `FRX_ENABLE_MODULE_AUDIO` | Required dependency; exposes the audio sample/value types used here. |
+| `FRX_ENABLE_MODULE_DSP_FRX` | Includes the DSP FRX module in the build and makes the shared `audio_types.h` sample/value types available. |
+| `AUDIO_MAX_NUM_CH` | Optional channel count for shared audio/DSP sample/value types; defaults to 2. |
 | `DSP_FRX_MIC_CALIB_SPL` | Reference SPL used for SPL conversion helpers. |
 | `DSP_FRX_DBFS_TO_SPL(dbfs, sens_db)` | dBFS-to-SPL conversion macro. |
 | `DSP_FRX_INT24_SCALE` | Scale factor for signed 24-bit audio samples. |

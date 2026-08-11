@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "syserr.h"
+#include "audio_types.h"
 #include "audio_default_cfg.h"
 #include "audio_jccl.h"
 
@@ -52,9 +53,6 @@ typedef enum{
     audio_i2s_ch_stereo = (i2s_channel_fmt_t)I2S_CHANNEL_FMT_RIGHT_LEFT
 }audio_i2s_ch_t;
 
-typedef int32_t audio_sample_base_t;
-typedef float audio_val_base_t;
-
 /// @brief Global audio settings shared by all banks.
 /// @param sr Sampling rate.
 /// @param bps Bit depth.
@@ -91,55 +89,6 @@ typedef enum{
     AUDIO_CTRL_EVT_SUSPEND,
     AUDIO_CTRL_EVT_SET_CALLBACK                  /// Set new audio callback (via event queue data field)
 }i2s_event_type_ext_t;
-
-/// @brief Sample description in time. All channels run in parallel.
-/// @note Amount of possible channels set by `AUDIO_MAX_NUM_CH`, but
-///       the runtime can use less than that if wanted.
-typedef union {
-    struct {
-        audio_sample_base_t ch1;
-        #if AUDIO_MAX_NUM_CH > 1
-        audio_sample_base_t ch2;
-        #endif
-        #if AUDIO_MAX_NUM_CH > 2
-        audio_sample_base_t ch3;
-        #endif
-        #if AUDIO_MAX_NUM_CH > 3
-        audio_sample_base_t ch4;
-        #endif
-    }_chx;
-    audio_sample_base_t ch[AUDIO_MAX_NUM_CH];
-}audio_sample_t;
-
-/// @brief Arbitrary DSP value description in time. All channels run in parallel.
-/// @note Amount of possible channels set by `AUDIO_MAX_NUM_CH`, but
-///       the runtime can use less than that if wanted.
-typedef union {
-    struct {
-        audio_val_base_t ch1;
-        #if AUDIO_MAX_NUM_CH > 1
-        audio_val_base_t ch2;
-        #endif
-        #if AUDIO_MAX_NUM_CH > 2
-        audio_val_base_t ch3;
-        #endif
-        #if AUDIO_MAX_NUM_CH > 3
-        audio_val_base_t ch4;
-        #endif
-    }_chx;
-    audio_val_base_t ch[AUDIO_MAX_NUM_CH];
-}audio_val_t;
-
-/// @brief Audio data IO struct. Represents the callback interface.
-/// @note If only input or only output is configured, the other poiner is NULL.
-typedef struct{
-    audio_sample_t* in;
-    audio_sample_t* out;
-    uint32_t len;
-    uint8_t nch;
-}audio_io_t;
-
-typedef void (*audio_cb_t)(audio_io_t* iobuf);
 
 /// @brief Audio meta descriptor. Holds buffer, event queue, global settings and banks.
 /// @param audio_buf Audio data buffer. Size is sizeof(audio_sample_t) * AUDIO_PINGPONG_SAMPLES * 2.

@@ -196,7 +196,9 @@ block budget.
 
 ## Audio Types
 
-Public structs, enums, unions, and callback typedefs used to describe audio data, topology, settings, and diagnostics.
+See [Shared audio sample/value types](audio_types.md) for the cross-module dependency map.
+
+The remaining public structs, enums, unions, and callback typedefs describe audio data, topology, settings, and diagnostics.
 
 ::: api audio_io_t
 
@@ -269,7 +271,7 @@ User-facing audio macros are grouped by purpose. Define overrides in `build_flag
 
 | Macro | Purpose |
 |---|---|
-| `FRX_ENABLE_MODULE_AUDIO` | Includes the audio module in the build. |
+| `FRX_ENABLE_MODULE_AUDIO` | Includes the audio module in the build and brings in the shared sample/value data shapes used by callbacks. |
 | `AUDIO_PIN_I2S_BCLK`, `AUDIO_PIN_I2S_WS` | Required shared I2S clock pins. |
 | `AUDIO_PIN_I2S_IN_A`, `AUDIO_PIN_I2S_OUT_A` | Required bank-A data pins. |
 | `AUDIO_PIN_I2S_IN_B`, `AUDIO_PIN_I2S_OUT_B` | Required bank-B data pins when `AUDIO_MAX_NUM_CH > 2`. |

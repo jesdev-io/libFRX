@@ -23,6 +23,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Default all-modules firmware: compile only, do not upload or flash.
+          - environment: frx_all
+            command: pio run -e frx_all
+
           # Demo firmware: compile only, do not upload or flash.
           - environment: frx_demo_sdcard
             command: pio run -e frx_demo_sdcard
@@ -38,6 +42,8 @@ jobs:
           # Hardware-backed test firmware: compile only, do not upload or flash.
           - environment: frx_test_audio
             command: pio test -e frx_test_audio --without-uploading --without-testing
+          - environment: frx_test_dsp_frx
+            command: pio test -e frx_test_dsp_frx --without-uploading --without-testing
           - environment: frx_test_dsp_frx
             command: pio test -e frx_test_dsp_frx --without-uploading --without-testing
           - environment: frx_test_ext_flash

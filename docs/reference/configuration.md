@@ -21,6 +21,28 @@ build_flags =
 A disabled module contributes no public declarations or implementation code to
 the build. This lets small firmware variants include only the tools they use.
 
+The repository PlatformIO test environments follow the same rule: each `frx_test_*`
+environment enables only the module macros and hardware flags needed by that test.
+`frx_test_audio` is the reference shape: it starts from the common base flags,
+adds only audio pins, enables `FRX_ENABLE_MODULE_AUDIO`, and adds
+`AUDIO_TIMING_ENABLE` because that test reads timing counters. The `frx_all`
+default environment is the opposite: it intentionally enables every module flag
+for the concrete physical test setup at jesdev.io.
+
+Some shared support headers are brought in by the modules that need them rather
+than by their own public toggle. For example, `lib/audio/audio_types.h` provides
+the `audio_sample_t`, `audio_val_t`, and `audio_io_t` data shapes when either
+`FRX_ENABLE_MODULE_AUDIO` or `FRX_ENABLE_MODULE_DSP_FRX` is defined. This lets
+the DSP module operate on the shared in-memory sample/value shape without compiling the
+I2S sampler or defining audio hardware pins.
+
+The hierarchy for audio channel topology is still explicit: `AUDIO_MAX_NUM_CH`
+defines the compile-time size of the shared sample/value types and which I2S bank
+symbols/configurations exist. Two-bank configurations such as
+`AUDIO_BANKS_CFG_DOUBLE_STEREO_IO` therefore also need `-DAUDIO_MAX_NUM_CH=4`
+and the bank-B pin macros. Setting only `AUDIO_BANKS_CFG_DEFAULT=AUDIO_BANKS_CFG_DOUBLE_STEREO_IO`
+without increasing `AUDIO_MAX_NUM_CH` is an invalid configuration.
+
 ## Required hardware flags
 
 Some settings cannot have safe library defaults because every board routes pins
@@ -113,6 +135,13 @@ See the example CLI call sections for why these shared string headers matter in
 practice: [Audio demo](../examples/audio_demo.md#cli-calls), [External flash demo](../examples/ext_flash_demo.md#cli-calls),
 [I2C demo](../examples/i2c_demo.md#cli-calls), [RTC demo](../examples/rtc_demo.md#cli-calls), and
 [SD card demo](../examples/sdcard_demo.md#cli-calls).
+
+## Non-PlatformIO builds
+
+If you compile libFRX with another build system than PlatformIO, define
+the same module, hardware, firmware metadata, and generated flash-time macros
+explicitly. See [Non-PlatformIO macro inputs](non_platformio_macros.md) for the
+repo-level macros appended by PlatformIO pre-scripts.
 
 ## Intended configuration flow
 

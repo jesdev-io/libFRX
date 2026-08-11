@@ -1,6 +1,6 @@
 # API Reference
 
-`libFRX` offers standalone and co-dependent modules for various tasks associated with audio field recording. Each module needs to be enabled with a build flag at compile time in a manual compile call or in the `build_flags` section of a PlatformIO environment:
+`libFRX` offers independent and co-dependent modules for various tasks associated with audio field recording. Each user-facing module needs to be enabled with a build flag at compile time in a manual compile call or in the `build_flags` section of a PlatformIO environment:
 
 ```bash
 -DFRX_ENABLE_MODULE_<module>
@@ -10,6 +10,7 @@ Each module's documentation holds exact function/struct/macro argument, member, 
 
 - [Configuration and defaults](configuration.md)
 - [Audio](audio.md)
+- [Audio types](audio_types.md)
 - [DSP](generated/dsp_frx_api.md)
 - [External Flash](ext_flash.md)
 - [I2C](i2c.md)
