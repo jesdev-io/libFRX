@@ -53,6 +53,17 @@
 #ifndef SDCARD_SDMMC_PIN_D3
 #error "SDCARD_SDMMC_PIN_D3 must be defined in platformio.ini for SDMMC mode"
 #endif
+#ifndef SDCARD_SDMMC_WIDTH
+#define SDCARD_SDMMC_WIDTH 4
+#endif
+
+#if SDCARD_SDMMC_WIDTH != 1 && SDCARD_SDMMC_WIDTH != 4
+#error "SDCARD_SDMMC_WIDTH must be 1 or 4"
+#endif
+
+#ifndef SDCARD_SDMMC_INTERNAL_PULLUP
+#define SDCARD_SDMMC_INTERNAL_PULLUP 0
+#endif
 #endif // SDCARD_MODE_SDMMC
 
 #ifndef SDCARD_BASE_PATH
