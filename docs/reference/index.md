@@ -13,6 +13,7 @@ Each module's documentation holds exact function/struct/macro argument, member, 
 - [Audio types](audio_types.md)
 - [DSP](generated/dsp_frx_api.md)
 - [External Flash](ext_flash.md)
+- [FSM Tools](fsm_tools.md)
 - [I2C](i2c.md)
   - [DS3231 RTC](i2c/rtc_ds3231.md)
 - [SD Card](sdcard.md)

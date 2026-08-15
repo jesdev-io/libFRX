@@ -49,6 +49,7 @@ nav:
       - Audio Types: reference/audio_types.md
       - DSP: reference/dsp_frx.md
       - External Flash: reference/ext_flash.md
+      - FSM Tools: reference/fsm_tools.md
       - I2C:
           - Base: reference/i2c.md
           - DS3231 RTC: reference/i2c/rtc_ds3231.md

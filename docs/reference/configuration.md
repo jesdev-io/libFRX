@@ -16,6 +16,7 @@ build_flags =
     -DFRX_ENABLE_MODULE_AUDIO
     -DFRX_ENABLE_MODULE_SDCARD
     -DFRX_ENABLE_MODULE_WAV
+    -DFRX_ENABLE_MODULE_FSM_TOOLS
 ```
 
 A disabled module contributes no public declarations or implementation code to
@@ -28,6 +29,8 @@ adds only audio pins, enables `FRX_ENABLE_MODULE_AUDIO`, and adds
 `AUDIO_TIMING_ENABLE` because that test reads timing counters. The `frx_all`
 default environment is the opposite: it intentionally enables every module flag
 for the concrete physical test setup at jesdev.io.
+
+Modules without hardware pin requirements, such as `fsm_tools`, only need their enable macro. They still follow the same disabled-module rule: no declarations or implementation code are contributed unless the module macro is set.
 
 Some shared support headers are brought in by the modules that need them rather
 than by their own public toggle. For example, `lib/audio/audio_types.h` provides
