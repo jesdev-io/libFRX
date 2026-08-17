@@ -75,12 +75,14 @@ void test_synth_write_sine(void) {
         TEST_ASSERT_FLOAT_WITHIN(1.0, 0.0, sample_val);
     }
 
-    // physically play audio, check with headphones or scope
+    // Physically play audio only when the compiled audio topology has TX.
+#if AUDIO_CFG_HAS_OUTPUT
     e = audio_set_callback(synth_cb);
     TEST_ASSERT_EQUAL(e_syserr_none, e);
     e = audio_start();
     TEST_ASSERT_EQUAL(e_syserr_none, e);
     // audio keeps running for remaining tests
+#endif
 }
 
 void test_synth_write_square(void) {
