@@ -8,18 +8,17 @@ queue sets, packing/unpacking, gain, timing counters, and CLI control local to
 the module.
 
 !!! tip "Quickstart"
-    Enable the module and define the default audio topology/pins in your PlatformIO environment. Replace the pin numbers with your board routing; the bank-B pins are only needed for `AUDIO_MAX_NUM_CH > 2`, but are shown here so every audio pin macro is visible.
+    Enable the module and define the default audio IO shape and pins in your PlatformIO environment. Simple macros describe hardware by input/output channel counts; ESP32 I2S bank mapping is derived internally.
 
     ```ini
     build_flags =
         -DFRX_ENABLE_MODULE_AUDIO
-        -DAUDIO_BANKS_CFG_DEFAULT=AUDIO_BANKS_CFG_SINGLE_STEREO_IO
+        -DAUDIO_IO_IN_CH=2
+        -DAUDIO_IO_OUT_CH=2
         -DAUDIO_PIN_I2S_BCLK=15
         -DAUDIO_PIN_I2S_WS=17
         -DAUDIO_PIN_I2S_IN_A=16
         -DAUDIO_PIN_I2S_OUT_A=6
-        -DAUDIO_PIN_I2S_IN_B=7
-        -DAUDIO_PIN_I2S_OUT_B=8
     ```
 
     Then set a callback, initialize the default topology, and start the sampler from firmware code:
@@ -272,15 +271,13 @@ User-facing audio macros are grouped by purpose. Define overrides in `build_flag
 | Macro | Purpose |
 |---|---|
 | `FRX_ENABLE_MODULE_AUDIO` | Includes the audio module in the build and brings in the shared sample/value data shapes used by callbacks. |
+| `AUDIO_IO_IN_CH`, `AUDIO_IO_OUT_CH` | Public default IO shape: number of input and output channels. Supported counts are 0, 1, 2, 3, and 4; at least one side must be nonzero. When both sides are enabled, counts must match. |
+| `AUDIO_IO_BUS_ARCH` | Public bus shape when both input and output exist. Defaults to `AUDIO_IO_BUS_ARCH_SHARED`, meaning full-duplex on filled I2S buses. Omit this macro for normal shared-bus hardware; set `AUDIO_IO_BUS_ARCH_SPLIT` only for rare hardware with separate input/output I2S buses up to two channels per side. |
 | `AUDIO_PIN_I2S_BCLK`, `AUDIO_PIN_I2S_WS` | Required shared I2S clock pins. |
-| `AUDIO_PIN_I2S_IN_A`, `AUDIO_PIN_I2S_OUT_A` | Required bank-A data pins. |
-| `AUDIO_PIN_I2S_IN_B`, `AUDIO_PIN_I2S_OUT_B` | Required bank-B data pins when `AUDIO_MAX_NUM_CH > 2`. |
-| `AUDIO_MAX_NUM_CH` | Maximum channel count compiled into audio sample/value unions. |
-| `AUDIO_BANKS_CFG_DEFAULT` | Default bank topology consumed by `audio_init_default()`. |
-| `AUDIO_BANKS_CFG_SINGLE_MONO_I`, `AUDIO_BANKS_CFG_SINGLE_MONO_O`, `AUDIO_BANKS_CFG_SINGLE_MONO_IO` | Single-bank mono topology presets. |
-| `AUDIO_BANKS_CFG_SINGLE_STEREO_I`, `AUDIO_BANKS_CFG_SINGLE_STEREO_O`, `AUDIO_BANKS_CFG_SINGLE_STEREO_IO` | Single-bank stereo topology presets. |
-| `AUDIO_BANKS_CFG_SINGLE_MONO_SINGLE_STEREO_I`, `AUDIO_BANKS_CFG_SINGLE_MONO_SINGLE_STEREO_O`, `AUDIO_BANKS_CFG_SINGLE_MONO_SINGLE_STEREO_IO` | Mixed mono/stereo two-bank topology presets. |
-| `AUDIO_BANKS_CFG_DOUBLE_STEREO_I`, `AUDIO_BANKS_CFG_DOUBLE_STEREO_O`, `AUDIO_BANKS_CFG_DOUBLE_STEREO_IO` | Two-bank stereo topology presets. |
+| `AUDIO_PIN_I2S_IN_A`, `AUDIO_PIN_I2S_OUT_A` | Required data pins for the first derived I2S adapter. |
+| `AUDIO_PIN_I2S_IN_B`, `AUDIO_PIN_I2S_OUT_B` | Required data pins when the derived adapter needs a second I2S bus. |
+| `AUDIO_MAX_NUM_CH` | Maximum channel count compiled into audio sample/value unions. Derived from `AUDIO_IO_IN_CH`/`AUDIO_IO_OUT_CH` unless explicitly overridden. |
+| `AUDIO_CFG_HAS_INPUT`, `AUDIO_CFG_HAS_OUTPUT` | Derived capability macros for topology-aware tests and modules. |
 | `AUDIO_SETTINGS_CFG_DEFAULT` | Default `audio_settings_t` initializer. |
 | `AUDIO_SR_DEFAULT`, `AUDIO_SR_44100`, `AUDIO_SR_48000`, `AUDIO_SR_96000`, `AUDIO_SR_MAX` | Sample-rate defaults and accepted named rates. |
 | `AUDIO_BPS_DEFAULT` | Default bit depth. |

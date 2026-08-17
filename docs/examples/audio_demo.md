@@ -51,7 +51,8 @@ At minimum, an equivalent firmware needs:
 ```ini
 build_flags =
     -DFRX_ENABLE_MODULE_AUDIO
-    -DAUDIO_BANKS_CFG_DEFAULT=AUDIO_BANKS_CFG_SINGLE_STEREO_IO
+    -DAUDIO_IO_IN_CH=2
+    -DAUDIO_IO_OUT_CH=2
     -DAUDIO_PIN_I2S_BCLK=15
     -DAUDIO_PIN_I2S_WS=17
     -DAUDIO_PIN_I2S_IN_A=16
