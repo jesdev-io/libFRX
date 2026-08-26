@@ -4,10 +4,7 @@
 #if defined(FRX_ENABLE_MODULE_AUDIO) || defined(FRX_ENABLE_MODULE_DSP_FRX)
 
 #include <stdint.h>
-
-#ifndef AUDIO_MAX_NUM_CH
-#define AUDIO_MAX_NUM_CH        2
-#endif
+#include "audio_io_arch.h"
 
 #if AUDIO_MAX_NUM_CH>4
 #error "Hardware platform only supports up to 4 channels"

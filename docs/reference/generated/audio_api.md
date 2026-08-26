@@ -161,7 +161,7 @@ typedef union {
 }audio_sample_t;
 ```
 
-Shared sample description in time. All channels run in parallel.
+Sample description in time. All channels run in parallel.
 
 > **Note:** Amount of possible channels set by `AUDIO_MAX_NUM_CH`, but the runtime can use less than that if wanted.
 

@@ -5,6 +5,7 @@ Tests the jescore CLI commands listed in libFRX/src/audio_demo.cpp.
 Note: These tests require a live MCU running the audio_demo.cpp app.
 """
 
+import os
 import re
 
 import pytest
@@ -21,7 +22,7 @@ AUDIO_STATUS_RE = (
 class TestAudioCLI:
     @pytest.fixture
     def cli(self):
-        return CjescoreCli(port=CjescoreCli.portAutoDetect(), verbose=False)
+        return CjescoreCli(port=os.environ.get("JESCORE_CLI_PORT") or CjescoreCli.portAutoDetect(), verbose=False)
 
     def test_status(self, cli):
         result = cli.uartTransceive(f"{AUDIO_CONTROL_JOB_NAME} {AUDIO_CMD_STATUS}")

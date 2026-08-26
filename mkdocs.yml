@@ -49,6 +49,7 @@ nav:
       - Audio Types: reference/audio_types.md
       - DSP: reference/dsp_frx.md
       - External Flash: reference/ext_flash.md
+      - FSM Tools: reference/fsm_tools.md
       - I2C:
           - Base: reference/i2c.md
           - DS3231 RTC: reference/i2c/rtc_ds3231.md
@@ -60,6 +61,7 @@ nav:
       - Overview: examples/index.md
       - Audio Demo App: examples/audio_demo.md
       - External Flash Demo App: examples/ext_flash_demo.md
+      - FSM Tools Demo App: examples/fsm_tools_demo.md
       - I2C Demo App: examples/i2c_demo.md
       - RTC Demo App: examples/rtc_demo.md
       - SD Card Demo App: examples/sdcard_demo.md

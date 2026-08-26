@@ -5,6 +5,7 @@
 - [Audio](audio_api.md)
 - [Dsp_Frx](dsp_frx_api.md)
 - [Ext_Flash](ext_flash_api.md)
+- [Fsm_Tools](fsm_tools_api.md)
 - [I2C](i2c_api.md)
 - [Sdcard](sdcard_api.md)
 - [Synth](synth_api.md)

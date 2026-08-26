@@ -214,11 +214,11 @@ _Source: `lib/sdcard/sdcard.h`_
 void sd_job(void* p);
 ```
 
-`jescore` CLI handler for the "sdcard" subcommand
+jescore CLI handler for the "sdcard" subcommand
 
 | Parameter | Description |
 |---|---|
-| `p` | `jescore` job struct, set from outside. |
+| `p` | jescore job struct, set from outside. |
 
 > **Note:** This function only performs CLI responses and should not be called by user code.
 
@@ -336,7 +336,7 @@ Remove a file.
 _Source: `lib/sdcard/sdcard.h`_
 
 ```cpp
-void sd_stream_close(FILE* f);
+e_syserr_t sd_stream_close(FILE* f);
 ```
 
 Close an opened file stream.
@@ -344,6 +344,8 @@ Close an opened file stream.
 | Parameter | Description |
 |---|---|
 | `f` | FILE pointer to opened file. |
+
+**Returns:** Error code. Includes pending stream-transfer and final close/flush state.
 
 ### `sd_stream_in`
 

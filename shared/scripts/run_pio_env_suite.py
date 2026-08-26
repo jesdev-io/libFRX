@@ -75,7 +75,7 @@ def _load_envs() -> list[EnvInfo]:
         section = parser[section_name]
         if "test_filter" in section:
             kind = EnvKind.TEST
-        elif name.startswith("frx_demo_"):
+        elif "_demo_" in name:
             kind = EnvKind.DEMO
         else:
             kind = EnvKind.DEFAULT
@@ -88,7 +88,7 @@ def _matches_any(name: str, patterns: list[str]) -> bool:
 
 
 def _demo_cli_test(env_name: str) -> pathlib.Path | None:
-    stem = env_name.removeprefix("frx_demo_")
+    stem = env_name.split("_demo_", 1)[1] if "_demo_" in env_name else env_name.removeprefix("frx_demo_")
     candidate = ROOT / "tests" / f"test_{stem}_cli.py"
     return candidate if candidate.exists() else None
 

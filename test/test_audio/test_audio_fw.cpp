@@ -86,8 +86,16 @@ void test_audio_sampler_static_read_write(void) {
     jes_delay_job_ms(500);
     TEST_ASSERT_EQUAL(e_err_no_err, jes_error_get(AUDIO_SERVER_JOB_NAME));
     TEST_ASSERT_GREATER_THAN_UINT32(calls_before, audio_cb_calls);
+#if AUDIO_CFG_HAS_INPUT
     TEST_ASSERT_TRUE(audio_cb_saw_input);
+#else
+    TEST_ASSERT_FALSE(audio_cb_saw_input);
+#endif
+#if AUDIO_CFG_HAS_OUTPUT
     TEST_ASSERT_TRUE(audio_cb_saw_output);
+#else
+    TEST_ASSERT_FALSE(audio_cb_saw_output);
+#endif
     TEST_ASSERT_EQUAL_UINT32(AUDIO_BLOCK_SAMPLES, audio_cb_last_len);
     TEST_ASSERT_GREATER_THAN_UINT8(0, audio_cb_last_nch);
 }

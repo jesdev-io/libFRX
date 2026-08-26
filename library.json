@@ -2,7 +2,7 @@
     "name": "libFRX",
     "version": "0.0.1",
     "description": "FRX shared firmware library - modular drivers for FR1-mini, FR2, and other FRX devices",
-    "keywords": ["FRX", "FR0", "FR1", "FR1-mini", "FR2", "ESP32", "audio", "DSP", "I2C", "SPI", "SDCard", "SDMMC", "external flash", "synth", "wav", "syserr", "utils"],
+    "keywords": ["FRX", "FR1", "FR1-mini", "FR2", "ESP32", "audio", "DSP", "I2C", "SPI", "SDCard", "SDMMC", "external flash", "synth", "wav", "syserr", "utils"],
     "repository":
     {
         "type": "git",
@@ -43,6 +43,7 @@
       "lib/audio/audio.h",
       "lib/dsp_frx/dsp_frx.h",
       "lib/ext_flash/ext_flash.h",
+      "lib/fsm_tools/fsm_tools.h",
       "lib/i2c/i2c_base.h",
       "lib/sdcard/sdcard.h",
       "lib/synth/synth.h",
@@ -55,9 +56,11 @@
         "includeDir": "lib",
         "srcFilter": ["+<lib/*/*.cpp>", "+<lib/*/*.c>", "+<shared/*/*.py>"],
         "flags": [
+          "-Iinclude",
           "-Ilib/audio",
           "-Ilib/dsp_frx",
           "-Ilib/ext_flash",
+          "-Ilib/fsm_tools",
           "-Ilib/i2c",
           "-Ilib/sdcard",
           "-Ilib/synth",

@@ -16,6 +16,7 @@ build_flags =
     -DFRX_ENABLE_MODULE_AUDIO
     -DFRX_ENABLE_MODULE_SDCARD
     -DFRX_ENABLE_MODULE_WAV
+    -DFRX_ENABLE_MODULE_FSM_TOOLS
 ```
 
 A disabled module contributes no public declarations or implementation code to
@@ -29,6 +30,8 @@ adds only audio pins, enables `FRX_ENABLE_MODULE_AUDIO`, and adds
 default environment is the opposite: it intentionally enables every module flag
 for the concrete physical test setup at jesdev.io.
 
+Modules without hardware pin requirements, such as `fsm_tools`, only need their enable macro. They still follow the same disabled-module rule: no declarations or implementation code are contributed unless the module macro is set.
+
 Some shared support headers are brought in by the modules that need them rather
 than by their own public toggle. For example, `lib/audio/audio_types.h` provides
 the `audio_sample_t`, `audio_val_t`, and `audio_io_t` data shapes when either
@@ -36,12 +39,12 @@ the `audio_sample_t`, `audio_val_t`, and `audio_io_t` data shapes when either
 the DSP module operate on the shared in-memory sample/value shape without compiling the
 I2S sampler or defining audio hardware pins.
 
-The hierarchy for audio channel topology is still explicit: `AUDIO_MAX_NUM_CH`
-defines the compile-time size of the shared sample/value types and which I2S bank
-symbols/configurations exist. Two-bank configurations such as
-`AUDIO_BANKS_CFG_DOUBLE_STEREO_IO` therefore also need `-DAUDIO_MAX_NUM_CH=4`
-and the bank-B pin macros. Setting only `AUDIO_BANKS_CFG_DEFAULT=AUDIO_BANKS_CFG_DOUBLE_STEREO_IO`
-without increasing `AUDIO_MAX_NUM_CH` is an invalid configuration.
+The hierarchy for audio channel topology is explicit but user-facing terms stay
+at the IO-shape level. `AUDIO_IO_IN_CH` and `AUDIO_IO_OUT_CH` describe the
+hardware channel counts. `AUDIO_IO_BUS_ARCH` defaults to shared full-duplex
+I2S; only set it explicitly for split input/output I2S buses. libFRX derives
+`AUDIO_MAX_NUM_CH`, capability macros, and the internal ESP32 bank mapping from
+those public settings.
 
 ## Required hardware flags
 
@@ -53,6 +56,8 @@ Example audio flags:
 
 ```ini
 build_flags =
+    -DAUDIO_IO_IN_CH=2
+    -DAUDIO_IO_OUT_CH=2
     -DAUDIO_PIN_I2S_BCLK=15
     -DAUDIO_PIN_I2S_WS=17
     -DAUDIO_PIN_I2S_IN_A=16

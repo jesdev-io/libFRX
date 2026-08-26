@@ -5,6 +5,7 @@ Tests the jescore CLI commands listed in libFRX/src/rtc_demo.cpp.
 Note: These tests require a live MCU running the rtc_demo.cpp app.
 """
 
+import os
 import re
 
 import pytest
@@ -19,7 +20,7 @@ RTC_TEMP_RE = r"-?\d+(?:\.\d+)? C"
 class TestRTCCLI:
     @pytest.fixture
     def cli(self):
-        return CjescoreCli(port=CjescoreCli.portAutoDetect(), verbose=False)
+        return CjescoreCli(port=os.environ.get("JESCORE_CLI_PORT") or CjescoreCli.portAutoDetect(), verbose=False)
 
     def test_help(self, cli):
         result = cli.uartTransceive(f"{DS3231_JOB_NAME} {DS3231_CMD_HELP}")

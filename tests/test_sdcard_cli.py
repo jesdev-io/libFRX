@@ -5,6 +5,7 @@ Tests the jescore CLI commands listed in libFRX/src/sdcard_demo.cpp.
 Note: These tests require a live MCU running the sdcard_demo.cpp app.
 """
 
+import os
 import pytest
 import re
 from jescorecli.jescorecli import CjescoreCli
@@ -50,7 +51,7 @@ def assert_has(result, pattern):
 class TestSDCardCLI:
     @pytest.fixture
     def cli(self):
-        return CjescoreCli(port=CjescoreCli.portAutoDetect(), verbose=False)
+        return CjescoreCli(port=os.environ.get("JESCORE_CLI_PORT") or CjescoreCli.portAutoDetect(), verbose=False)
 
     def test_mnt(self, cli):
         result = assert_no_sdcard_error(

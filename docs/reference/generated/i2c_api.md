@@ -30,8 +30,120 @@ _Source: `lib/i2c/i2c_base.h`_
 void i2c_base_scan_job(void* p);
 ```
 
-`jescore` job handler for I2C slave detection
+jescore job handler for I2C slave detection
 
 | Parameter | Description |
 |---|---|
-| `p` | `jescore` job parameters |
+| `p` | jescore job parameters |
+
+### `i2c_rtc_ds3231_get_temp`
+
+_Source: `lib/i2c/i2c_rtc_ds3231.h`_
+
+```cpp
+e_syserr_t i2c_rtc_ds3231_get_temp(float *temp);
+```
+
+Read temperature from the DS3231.
+
+| Parameter | Description |
+|---|---|
+| `temp` | Pointer to float to store temperature in Celsius. |
+
+**Returns:** Error code.
+
+### `i2c_rtc_ds3231_get_time`
+
+_Source: `lib/i2c/i2c_rtc_ds3231.h`_
+
+```cpp
+e_syserr_t i2c_rtc_ds3231_get_time(struct tm *timeinfo);
+```
+
+Get current time from the DS3231.
+
+| Parameter | Description |
+|---|---|
+| `timeinfo` | Pointer to struct tm to store time. |
+
+**Returns:** Error code.
+
+> **Note:** tm_year is represented in the standard C form: years since 1900.
+
+### `i2c_rtc_ds3231_init`
+
+_Source: `lib/i2c/i2c_rtc_ds3231.h`_
+
+```cpp
+e_syserr_t i2c_rtc_ds3231_init(uint8_t scl, uint8_t sda, uint32_t speed);
+```
+
+Initialize the DS3231 RTC and its I2C bus.
+
+| Parameter | Description |
+|---|---|
+| `scl` | SCL pin number. |
+| `sda` | SDA pin number. |
+| `speed` | I2C speed in Hz. |
+
+**Returns:** Error code.
+
+### `i2c_rtc_ds3231_init_default`
+
+_Source: `lib/i2c/i2c_rtc_ds3231.h`_
+
+```cpp
+e_syserr_t i2c_rtc_ds3231_init_default(void);
+```
+
+Initialize the DS3231 RTC with the default I2C bus configuration.
+
+**Returns:** Error code.
+
+> **Note:** Uses I2C_BASE_SCL, I2C_BASE_SDA, and I2C_BASE_SPEED.
+
+### `i2c_rtc_ds3231_is_initialized`
+
+_Source: `lib/i2c/i2c_rtc_ds3231.h`_
+
+```cpp
+uint8_t i2c_rtc_ds3231_is_initialized(void);
+```
+
+Check whether the DS3231 RTC module has been initialized.
+
+**Returns:** 1 when initialized, 0 otherwise.
+
+### `i2c_rtc_ds3231_job`
+
+_Source: `lib/i2c/i2c_rtc_ds3231.h`_
+
+```cpp
+void i2c_rtc_ds3231_job(void* p);
+```
+
+DS3231 RTC jescore job handler.
+
+| Parameter | Description |
+|---|---|
+| `p` | jescore job parameter pointer. |
+
+> **Note:** Available arguments: `time`, `temp`.
+
+### `i2c_rtc_ds3231_set_time`
+
+_Source: `lib/i2c/i2c_rtc_ds3231.h`_
+
+```cpp
+e_syserr_t i2c_rtc_ds3231_set_time(const struct tm *timeinfo);
+```
+
+Set current time on the DS3231.
+
+| Parameter | Description |
+|---|---|
+| `timeinfo` | Pointer to struct tm containing time to set. |
+
+**Returns:** Error code.
+
+> **Note:** Writes 24-hour mode. tm_year is represented in the standard C form: years since 1900.

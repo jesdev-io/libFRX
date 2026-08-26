@@ -3,6 +3,8 @@
 
 #ifdef FRX_ENABLE_MODULE_AUDIO
 
+#include "audio_io_arch.h"
+
 #ifndef AUDIO_SERVER_JOB_MEM
 #define AUDIO_SERVER_JOB_MEM    (4096)
 #endif
@@ -43,22 +45,46 @@
 #error "AUDIO_PIN_I2S_WS must be defined in platformio.ini"
 #endif
 
+#if AUDIO_CFG_HAS_INPUT
 #ifndef AUDIO_PIN_I2S_IN_A
-#error "AUDIO_PIN_I2S_IN_A must be defined in platformio.ini"
+#error "AUDIO_PIN_I2S_IN_A must be defined in platformio.ini when audio input is enabled"
+#endif
+#else
+#ifndef AUDIO_PIN_I2S_IN_A
+#define AUDIO_PIN_I2S_IN_A -1
+#endif
 #endif
 
+#if AUDIO_CFG_HAS_OUTPUT
 #ifndef AUDIO_PIN_I2S_OUT_A
-#error "AUDIO_PIN_I2S_OUT_A must be defined in platformio.ini"
+#error "AUDIO_PIN_I2S_OUT_A must be defined in platformio.ini when audio output is enabled"
+#endif
+#else
+#ifndef AUDIO_PIN_I2S_OUT_A
+#define AUDIO_PIN_I2S_OUT_A -1
+#endif
 #endif
 
 #if AUDIO_MAX_NUM_CH>2
 
+#if AUDIO_CFG_HAS_INPUT
 #ifndef AUDIO_PIN_I2S_IN_B
-#error "AUDIO_PIN_I2S_IN_B must be defined in platformio.ini"
+#error "AUDIO_PIN_I2S_IN_B must be defined in platformio.ini for 3/4-channel audio input"
+#endif
+#else
+#ifndef AUDIO_PIN_I2S_IN_B
+#define AUDIO_PIN_I2S_IN_B -1
+#endif
 #endif
 
+#if AUDIO_CFG_HAS_OUTPUT
 #ifndef AUDIO_PIN_I2S_OUT_B
-#error "AUDIO_PIN_I2S_OUT_B must be defined in platformio.ini"
+#error "AUDIO_PIN_I2S_OUT_B must be defined in platformio.ini for 3/4-channel audio output"
+#endif
+#else
+#ifndef AUDIO_PIN_I2S_OUT_B
+#define AUDIO_PIN_I2S_OUT_B -1
+#endif
 #endif
 #endif // AUDIO_MAX_NUM_CH>2
 
@@ -200,7 +226,7 @@
     ,{ \
         .bank = audio_i2s_bank_b, \
         .ad = audio_i2s_bank_devi_i, \
-        .ch = audio_i2s_ch_stereo, \
+        .ch = audio_i2s_ch_mono, \
         .data_rx = AUDIO_PIN_I2S_IN_B, \
         .data_tx = -1 \
     } \
@@ -217,7 +243,7 @@
     ,{ \
         .bank = audio_i2s_bank_b, \
         .ad = audio_i2s_bank_devi_o, \
-        .ch = audio_i2s_ch_stereo, \
+        .ch = audio_i2s_ch_mono, \
         .data_rx = -1, \
         .data_tx = AUDIO_PIN_I2S_OUT_B \
     } \
@@ -234,7 +260,7 @@
     ,{ \
         .bank = audio_i2s_bank_b, \
         .ad = audio_i2s_bank_devi_io, \
-        .ch = audio_i2s_ch_stereo, \
+        .ch = audio_i2s_ch_mono, \
         .data_rx = AUDIO_PIN_I2S_IN_B, \
         .data_tx = AUDIO_PIN_I2S_OUT_B \
     } \
@@ -275,6 +301,23 @@
     } \
 }
 
+#define AUDIO_BANKS_CFG_STEREO_I_STEREO_O { \
+    { \
+        .bank = audio_i2s_bank_a, \
+        .ad = audio_i2s_bank_host_i, \
+        .ch = audio_i2s_ch_stereo, \
+        .data_rx = AUDIO_PIN_I2S_IN_A, \
+        .data_tx = -1 \
+    } \
+    ,{ \
+        .bank = audio_i2s_bank_b, \
+        .ad = audio_i2s_bank_host_o, \
+        .ch = audio_i2s_ch_stereo, \
+        .data_rx = -1, \
+        .data_tx = AUDIO_PIN_I2S_OUT_B \
+    } \
+}
+
 #define AUDIO_BANKS_CFG_DOUBLE_STEREO_IO { \
     { \
         .bank = audio_i2s_bank_a, \
@@ -295,8 +338,36 @@
 #endif // #if AUDIO_MAX_NUM_CH > 2
 
 #ifndef AUDIO_BANKS_CFG_DEFAULT
+#if AUDIO_IO_IN_CH == 1 && AUDIO_IO_OUT_CH == 0
+#define AUDIO_BANKS_CFG_DEFAULT AUDIO_BANKS_CFG_SINGLE_MONO_I
+#elif AUDIO_IO_IN_CH == 0 && AUDIO_IO_OUT_CH == 1
+#define AUDIO_BANKS_CFG_DEFAULT AUDIO_BANKS_CFG_SINGLE_MONO_O
+#elif AUDIO_IO_IN_CH == 1 && AUDIO_IO_OUT_CH == 1
+#define AUDIO_BANKS_CFG_DEFAULT AUDIO_BANKS_CFG_SINGLE_MONO_IO
+#elif AUDIO_IO_IN_CH == 2 && AUDIO_IO_OUT_CH == 0
+#define AUDIO_BANKS_CFG_DEFAULT AUDIO_BANKS_CFG_SINGLE_STEREO_I
+#elif AUDIO_IO_IN_CH == 0 && AUDIO_IO_OUT_CH == 2
+#define AUDIO_BANKS_CFG_DEFAULT AUDIO_BANKS_CFG_SINGLE_STEREO_O
+#elif AUDIO_IO_IN_CH == 2 && AUDIO_IO_OUT_CH == 2 && AUDIO_IO_BUS_ARCH == AUDIO_IO_BUS_ARCH_SHARED
 #define AUDIO_BANKS_CFG_DEFAULT AUDIO_BANKS_CFG_SINGLE_STEREO_IO
-#endif 
+#elif AUDIO_IO_IN_CH == 2 && AUDIO_IO_OUT_CH == 2 && AUDIO_IO_BUS_ARCH == AUDIO_IO_BUS_ARCH_SPLIT
+#define AUDIO_BANKS_CFG_DEFAULT AUDIO_BANKS_CFG_STEREO_I_STEREO_O
+#elif AUDIO_IO_IN_CH == 3 && AUDIO_IO_OUT_CH == 0
+#define AUDIO_BANKS_CFG_DEFAULT AUDIO_BANKS_CFG_SINGLE_MONO_SINGLE_STEREO_I
+#elif AUDIO_IO_IN_CH == 0 && AUDIO_IO_OUT_CH == 3
+#define AUDIO_BANKS_CFG_DEFAULT AUDIO_BANKS_CFG_SINGLE_MONO_SINGLE_STEREO_O
+#elif AUDIO_IO_IN_CH == 3 && AUDIO_IO_OUT_CH == 3 && AUDIO_IO_BUS_ARCH == AUDIO_IO_BUS_ARCH_SHARED
+#define AUDIO_BANKS_CFG_DEFAULT AUDIO_BANKS_CFG_SINGLE_MONO_SINGLE_STEREO_IO
+#elif AUDIO_IO_IN_CH == 4 && AUDIO_IO_OUT_CH == 0
+#define AUDIO_BANKS_CFG_DEFAULT AUDIO_BANKS_CFG_DOUBLE_STEREO_I
+#elif AUDIO_IO_IN_CH == 0 && AUDIO_IO_OUT_CH == 4
+#define AUDIO_BANKS_CFG_DEFAULT AUDIO_BANKS_CFG_DOUBLE_STEREO_O
+#elif AUDIO_IO_IN_CH == 4 && AUDIO_IO_OUT_CH == 4
+#define AUDIO_BANKS_CFG_DEFAULT AUDIO_BANKS_CFG_DOUBLE_STEREO_IO
+#else
+#error "Unsupported AUDIO_IO_IN_CH/AUDIO_IO_OUT_CH/AUDIO_IO_BUS_ARCH combination"
+#endif
+#endif
 
 #endif // FRX_ENABLE_MODULE_AUDIO
 

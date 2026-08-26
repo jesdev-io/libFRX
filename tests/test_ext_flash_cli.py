@@ -5,6 +5,7 @@ Tests the jescore CLI commands listed in libFRX/src/ext_flash_demo.cpp.
 Note: These tests require a live MCU running the ext_flash_demo.cpp app.
 """
 
+import os
 import re
 
 import pytest
@@ -19,7 +20,7 @@ EF_FW_RE = r"FW: \d+\.\d+."
 class TestExtFlashCLI:
     @pytest.fixture
     def cli(self):
-        return CjescoreCli(port=CjescoreCli.portAutoDetect(), verbose=False)
+        return CjescoreCli(port=os.environ.get("JESCORE_CLI_PORT") or CjescoreCli.portAutoDetect(), verbose=False)
 
     def test_no_command(self, cli):
         result = cli.uartTransceive("ef")
