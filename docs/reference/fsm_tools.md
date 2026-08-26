@@ -49,8 +49,37 @@ This module intentionally does **not** provide states such as idle, record, play
 - state descriptors with `enter`, `routine`, and `exit` callbacks;
 - transition sequencing with first-error return;
 - routine synchronization so control code can wait for callback code to leave a state routine;
-- lock-protected runtime argument/value snapshots;
+- lock-protected user-defined snapshot slots;
 - callback-local block context passing for audio, sensor, or other block-processing loops.
+
+## Snapshot slots
+
+In `fsm_tools`, a **slot** is one named storage location inside an FSM instance. It is not a state, not a transition, not a GPIO slot, and not a scheduling queue. It is simply a lock-protected byte buffer registered under a small integer ID.
+
+Slots can hold whatever the application says they hold. For example, one application might use two semantic slots:
+
+```cpp
+typedef enum {
+    app_slot_stateful_input = 0,   // commands/config that control state behavior
+    app_slot_process_output = 1,   // status/results produced by routines
+} app_slot_t;
+```
+
+Then register storage:
+
+```cpp
+frx_fsm_set_slot_storage(&fsm, app_slot_stateful_input, &input, sizeof(input));
+frx_fsm_set_slot_storage(&fsm, app_slot_process_output, &output, sizeof(output));
+```
+
+And copy current slot contents in/out:
+
+```cpp
+frx_fsm_publish_slot(&fsm, app_slot_stateful_input, &input, sizeof(input));
+frx_fsm_get_slot(&fsm, app_slot_process_output, &output, sizeof(output));
+```
+
+Slots are **current snapshots**, not history. Publishing to the same slot overwrites the previous contents. `FRX_FSM_MAX_SLOTS` controls the compile-time number of slots stored in each `frx_fsm_t`.
 
 The consuming firmware still owns:
 
@@ -62,6 +91,10 @@ The consuming firmware still owns:
 ## Types
 
 ::: api fsm_tools.frx_fsm_state_id_t
+
+<!-- Add handwritten notes here. -->
+
+::: api fsm_tools.frx_fsm_slot_id_t
 
 <!-- Add handwritten notes here. -->
 
@@ -81,6 +114,10 @@ The consuming firmware still owns:
 
 <!-- Add handwritten notes here. -->
 
+::: api fsm_tools.frx_fsm_slot_t
+
+<!-- Add handwritten notes here. -->
+
 ::: api fsm_tools.frx_fsm_t
 
 <!-- Add handwritten notes here. -->
@@ -91,7 +128,7 @@ The consuming firmware still owns:
 
 <!-- Add handwritten notes here. -->
 
-::: api fsm_tools.frx_fsm_set_snapshot_storage
+::: api fsm_tools.frx_fsm_set_slot_storage
 
 <!-- Add handwritten notes here. -->
 
@@ -119,19 +156,11 @@ The consuming firmware still owns:
 
 <!-- Add handwritten notes here. -->
 
-::: api fsm_tools.frx_fsm_publish_args
+::: api fsm_tools.frx_fsm_publish_slot
 
 <!-- Add handwritten notes here. -->
 
-::: api fsm_tools.frx_fsm_get_args
-
-<!-- Add handwritten notes here. -->
-
-::: api fsm_tools.frx_fsm_publish_values
-
-<!-- Add handwritten notes here. -->
-
-::: api fsm_tools.frx_fsm_get_values
+::: api fsm_tools.frx_fsm_get_slot
 
 <!-- Add handwritten notes here. -->
 
@@ -153,3 +182,4 @@ The consuming firmware still owns:
 |---|---|
 | `FRX_ENABLE_MODULE_FSM_TOOLS` | Includes the generic FSM tools module in the build. |
 | `FRX_FSM_NO_STATE` | Sentinel state ID for applications that do not need a distinct transition marker. |
+| `FRX_FSM_MAX_SLOTS` | Compile-time number of snapshot slots in each FSM instance. Defaults to `2`. |

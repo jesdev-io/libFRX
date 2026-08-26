@@ -11,8 +11,15 @@
 
 #define FRX_FSM_NO_STATE 0xFFFF
 
-/// @brief Application-defined FSM state ID type.
+#ifndef FRX_FSM_MAX_SLOTS
+#define FRX_FSM_MAX_SLOTS 2
+#endif
+
+/// @brief FSM state ID type.
 typedef uint16_t frx_fsm_state_id_t;
+
+/// @brief Snapshot slot ID type.
+typedef uint8_t frx_fsm_slot_id_t;
 
 struct frx_fsm_t;
 struct frx_fsm_state_t;
@@ -46,6 +53,12 @@ typedef struct frx_fsm_state_t{
     void* ctx;
 }frx_fsm_state_t;
 
+/// @brief One user-defined snapshot slot.
+typedef struct frx_fsm_slot_t{
+    void* storage;
+    size_t size;
+}frx_fsm_slot_t;
+
 /// @brief Generic FSM instance. The application owns the storage.
 typedef struct frx_fsm_t{
     frx_fsm_state_id_t cur_state;
@@ -54,10 +67,7 @@ typedef struct frx_fsm_t{
     uint16_t n_states;
     SemaphoreHandle_t routine_lock;
     SemaphoreHandle_t snapshot_lock;
-    void* args_snapshot;
-    size_t args_snapshot_size;
-    void* values_snapshot;
-    size_t values_snapshot_size;
+    frx_fsm_slot_t slots[FRX_FSM_MAX_SLOTS];
     void* block_ctx;
 }frx_fsm_t;
 
@@ -70,14 +80,14 @@ typedef struct frx_fsm_t{
 /// @return Error code.
 e_syserr_t frx_fsm_init(frx_fsm_t* fsm, frx_fsm_state_t* states, uint16_t n_states, frx_fsm_state_id_t initial_state, frx_fsm_state_id_t transition_state);
 
-/// @brief Attach snapshot storage for runtime arguments and values.
+/// @brief Attach storage for one user-defined snapshot slot.
 /// @param fsm FSM instance.
-/// @param args_snapshot Optional argument snapshot buffer.
-/// @param args_snapshot_size Argument snapshot byte size.
-/// @param values_snapshot Optional values snapshot buffer.
-/// @param values_snapshot_size Values snapshot byte size.
+/// @param slot Application-defined slot ID. Must be less than FRX_FSM_MAX_SLOTS.
+/// @param storage Snapshot storage owned by caller.
+/// @param size Snapshot byte size.
 /// @return Error code.
-e_syserr_t frx_fsm_set_snapshot_storage(frx_fsm_t* fsm, void* args_snapshot, size_t args_snapshot_size, void* values_snapshot, size_t values_snapshot_size);
+/// @note Slots are not history. Each publish overwrites the current value in that slot.
+e_syserr_t frx_fsm_set_slot_storage(frx_fsm_t* fsm, frx_fsm_slot_id_t slot, void* storage, size_t size);
 
 /// @brief Find a state descriptor by ID.
 /// @param fsm FSM instance.
@@ -106,7 +116,7 @@ e_syserr_t frx_fsm_routine_state(frx_fsm_t* fsm, frx_fsm_state_id_t id);
 /// @brief Transition from current state to target state.
 /// @param fsm FSM instance.
 /// @param target_state Target state ID.
-/// @param await_sync If nonzero, wait until no routine is running before transition.
+/// @param await_sync If nonzero, function blocks before transition until the last routine block is finished.
 /// @return Error code.
 e_syserr_t frx_fsm_transition(frx_fsm_t* fsm, frx_fsm_state_id_t target_state, uint8_t await_sync);
 
@@ -115,33 +125,21 @@ e_syserr_t frx_fsm_transition(frx_fsm_t* fsm, frx_fsm_state_id_t target_state, u
 /// @return Error code.
 e_syserr_t frx_fsm_await_sync(frx_fsm_t* fsm);
 
-/// @brief Publish a typed argument snapshot into FSM-owned snapshot storage.
+/// @brief Publish bytes to a user-defined snapshot slot.
 /// @param fsm FSM instance.
-/// @param args Source argument bytes.
-/// @param len Source byte length. Must match configured storage size.
+/// @param slot Application-defined slot ID.
+/// @param data Source bytes.
+/// @param len Source byte length. Must match configured slot size.
 /// @return Error code.
-e_syserr_t frx_fsm_publish_args(frx_fsm_t* fsm, const void* args, size_t len);
+e_syserr_t frx_fsm_publish_slot(frx_fsm_t* fsm, frx_fsm_slot_id_t slot, const void* data, size_t len);
 
-/// @brief Read the current argument snapshot.
+/// @brief Read bytes from a user-defined snapshot slot.
 /// @param fsm FSM instance.
-/// @param args Destination argument bytes.
-/// @param len Destination byte length. Must match configured storage size.
+/// @param slot Application-defined slot ID.
+/// @param data Destination bytes.
+/// @param len Destination byte length. Must match configured slot size.
 /// @return Error code.
-e_syserr_t frx_fsm_get_args(frx_fsm_t* fsm, void* args, size_t len);
-
-/// @brief Publish a typed runtime-values snapshot into FSM-owned snapshot storage.
-/// @param fsm FSM instance.
-/// @param values Source value bytes.
-/// @param len Source byte length. Must match configured storage size.
-/// @return Error code.
-e_syserr_t frx_fsm_publish_values(frx_fsm_t* fsm, const void* values, size_t len);
-
-/// @brief Read the current runtime-values snapshot.
-/// @param fsm FSM instance.
-/// @param values Destination value bytes.
-/// @param len Destination byte length. Must match configured storage size.
-/// @return Error code.
-e_syserr_t frx_fsm_get_values(frx_fsm_t* fsm, void* values, size_t len);
+e_syserr_t frx_fsm_get_slot(frx_fsm_t* fsm, frx_fsm_slot_id_t slot, void* data, size_t len);
 
 /// @brief Set the current block-processing context pointer.
 /// @param fsm FSM instance.

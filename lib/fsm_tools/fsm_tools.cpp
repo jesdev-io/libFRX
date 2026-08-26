@@ -36,16 +36,15 @@ e_syserr_t frx_fsm_init(frx_fsm_t* fsm, frx_fsm_state_t* states, uint16_t n_stat
     return e_syserr_none;
 }
 
-e_syserr_t frx_fsm_set_snapshot_storage(frx_fsm_t* fsm, void* args_snapshot, size_t args_snapshot_size, void* values_snapshot, size_t values_snapshot_size) {
+e_syserr_t frx_fsm_set_slot_storage(frx_fsm_t* fsm, frx_fsm_slot_id_t slot, void* storage, size_t size) {
     e_syserr_t e = __frx_fsm_check(fsm);
     if (e != e_syserr_none) return e;
-    if ((args_snapshot == NULL) != (args_snapshot_size == 0)) return e_syserr_param;
-    if ((values_snapshot == NULL) != (values_snapshot_size == 0)) return e_syserr_param;
+    if (slot >= FRX_FSM_MAX_SLOTS) return e_syserr_param;
+    if (storage == NULL) return e_syserr_null;
+    if (size == 0) return e_syserr_zero;
     xSemaphoreTake(fsm->snapshot_lock, portMAX_DELAY);
-    fsm->args_snapshot = args_snapshot;
-    fsm->args_snapshot_size = args_snapshot_size;
-    fsm->values_snapshot = values_snapshot;
-    fsm->values_snapshot_size = values_snapshot_size;
+    fsm->slots[slot].storage = storage;
+    fsm->slots[slot].size = size;
     xSemaphoreGive(fsm->snapshot_lock);
     return e_syserr_none;
 }
@@ -119,46 +118,26 @@ e_syserr_t frx_fsm_await_sync(frx_fsm_t* fsm) {
     return e_syserr_none;
 }
 
-e_syserr_t frx_fsm_publish_args(frx_fsm_t* fsm, const void* args, size_t len) {
+e_syserr_t frx_fsm_publish_slot(frx_fsm_t* fsm, frx_fsm_slot_id_t slot, const void* data, size_t len) {
     e_syserr_t e = __frx_fsm_check(fsm);
     if (e != e_syserr_none) return e;
-    e = __frx_fsm_check_snapshot(fsm->args_snapshot, fsm->args_snapshot_size, args, len);
+    if (slot >= FRX_FSM_MAX_SLOTS) return e_syserr_param;
+    e = __frx_fsm_check_snapshot(fsm->slots[slot].storage, fsm->slots[slot].size, data, len);
     if (e != e_syserr_none) return e;
     xSemaphoreTake(fsm->snapshot_lock, portMAX_DELAY);
-    memcpy(fsm->args_snapshot, args, len);
+    memcpy(fsm->slots[slot].storage, data, len);
     xSemaphoreGive(fsm->snapshot_lock);
     return e_syserr_none;
 }
 
-e_syserr_t frx_fsm_get_args(frx_fsm_t* fsm, void* args, size_t len) {
+e_syserr_t frx_fsm_get_slot(frx_fsm_t* fsm, frx_fsm_slot_id_t slot, void* data, size_t len) {
     e_syserr_t e = __frx_fsm_check(fsm);
     if (e != e_syserr_none) return e;
-    e = __frx_fsm_check_snapshot(fsm->args_snapshot, fsm->args_snapshot_size, args, len);
+    if (slot >= FRX_FSM_MAX_SLOTS) return e_syserr_param;
+    e = __frx_fsm_check_snapshot(fsm->slots[slot].storage, fsm->slots[slot].size, data, len);
     if (e != e_syserr_none) return e;
     xSemaphoreTake(fsm->snapshot_lock, portMAX_DELAY);
-    memcpy(args, fsm->args_snapshot, len);
-    xSemaphoreGive(fsm->snapshot_lock);
-    return e_syserr_none;
-}
-
-e_syserr_t frx_fsm_publish_values(frx_fsm_t* fsm, const void* values, size_t len) {
-    e_syserr_t e = __frx_fsm_check(fsm);
-    if (e != e_syserr_none) return e;
-    e = __frx_fsm_check_snapshot(fsm->values_snapshot, fsm->values_snapshot_size, values, len);
-    if (e != e_syserr_none) return e;
-    xSemaphoreTake(fsm->snapshot_lock, portMAX_DELAY);
-    memcpy(fsm->values_snapshot, values, len);
-    xSemaphoreGive(fsm->snapshot_lock);
-    return e_syserr_none;
-}
-
-e_syserr_t frx_fsm_get_values(frx_fsm_t* fsm, void* values, size_t len) {
-    e_syserr_t e = __frx_fsm_check(fsm);
-    if (e != e_syserr_none) return e;
-    e = __frx_fsm_check_snapshot(fsm->values_snapshot, fsm->values_snapshot_size, values, len);
-    if (e != e_syserr_none) return e;
-    xSemaphoreTake(fsm->snapshot_lock, portMAX_DELAY);
-    memcpy(values, fsm->values_snapshot, len);
+    memcpy(data, fsm->slots[slot].storage, len);
     xSemaphoreGive(fsm->snapshot_lock);
     return e_syserr_none;
 }

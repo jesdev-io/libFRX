@@ -214,11 +214,11 @@ _Source: `lib/sdcard/sdcard.h`_
 void sd_job(void* p);
 ```
 
-`jescore` CLI handler for the "sdcard" subcommand
+jescore CLI handler for the "sdcard" subcommand
 
 | Parameter | Description |
 |---|---|
-| `p` | `jescore` job struct, set from outside. |
+| `p` | jescore job struct, set from outside. |
 
 > **Note:** This function only performs CLI responses and should not be called by user code.
 

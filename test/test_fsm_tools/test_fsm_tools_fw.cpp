@@ -13,18 +13,23 @@ typedef struct{
 typedef struct{
     uint16_t state;
     uint16_t count;
-} test_args_t;
+} test_control_snapshot_t;
 
 typedef struct{
     uint16_t ran;
     uint16_t last_block;
-} test_values_t;
+} test_result_snapshot_t;
 
 static frx_fsm_t fsm;
 static test_state_ctx_t ctx_a;
 static test_state_ctx_t ctx_b;
-static test_args_t args_snapshot;
-static test_values_t values_snapshot;
+typedef enum{
+    test_slot_stateful_input = 0,
+    test_slot_process_output = 1,
+} test_slot_t;
+
+static test_control_snapshot_t control_snapshot;
+static test_result_snapshot_t result_snapshot;
 
 static e_syserr_t test_enter(frx_fsm_t* fsm, frx_fsm_state_t* state, void* ctx) {
     (void)fsm;
@@ -46,8 +51,8 @@ static void test_routine(frx_fsm_t* fsm, frx_fsm_state_t* state, void* ctx) {
     sctx->ran++;
     uint16_t* block = (uint16_t*)frx_fsm_get_block_context(fsm);
     if (block != NULL) sctx->block_seen = *block;
-    test_values_t values = {.ran = sctx->ran, .last_block = sctx->block_seen};
-    frx_fsm_publish_values(fsm, &values, sizeof(values));
+    test_result_snapshot_t result = {.ran = sctx->ran, .last_block = sctx->block_seen};
+    frx_fsm_publish_slot(fsm, test_slot_process_output, &result, sizeof(result));
 }
 
 static frx_fsm_state_t states[] = {
@@ -68,19 +73,21 @@ void test_fsm_tools_init_and_lookup(void){
     TEST_ASSERT_EQUAL(1, fsm.cur_state);
     TEST_ASSERT_EQUAL(&states[0], frx_fsm_find_state(&fsm, 1));
     TEST_ASSERT_EQUAL(NULL, frx_fsm_find_state(&fsm, 9));
-    e = frx_fsm_set_snapshot_storage(&fsm, &args_snapshot, sizeof(args_snapshot), &values_snapshot, sizeof(values_snapshot));
+    e = frx_fsm_set_slot_storage(&fsm, test_slot_stateful_input, &control_snapshot, sizeof(control_snapshot));
+    TEST_ASSERT_EQUAL(e_syserr_none, e);
+    e = frx_fsm_set_slot_storage(&fsm, test_slot_process_output, &result_snapshot, sizeof(result_snapshot));
     TEST_ASSERT_EQUAL(e_syserr_none, e);
 }
 
 void test_fsm_tools_snapshot(void){
-    test_args_t args = {.state = 1, .count = 42};
-    test_args_t args_read = {0};
-    e_syserr_t e = frx_fsm_publish_args(&fsm, &args, sizeof(args));
+    test_control_snapshot_t control = {.state = 1, .count = 42};
+    test_control_snapshot_t control_read = {0};
+    e_syserr_t e = frx_fsm_publish_slot(&fsm, test_slot_stateful_input, &control, sizeof(control));
     TEST_ASSERT_EQUAL(e_syserr_none, e);
-    e = frx_fsm_get_args(&fsm, &args_read, sizeof(args_read));
+    e = frx_fsm_get_slot(&fsm, test_slot_stateful_input, &control_read, sizeof(control_read));
     TEST_ASSERT_EQUAL(e_syserr_none, e);
-    TEST_ASSERT_EQUAL(args.state, args_read.state);
-    TEST_ASSERT_EQUAL(args.count, args_read.count);
+    TEST_ASSERT_EQUAL(control.state, control_read.state);
+    TEST_ASSERT_EQUAL(control.count, control_read.count);
 }
 
 void test_fsm_tools_transition(void){
@@ -99,11 +106,11 @@ void test_fsm_tools_routine_and_block(void){
     TEST_ASSERT_EQUAL(77, ctx_b.block_seen);
     TEST_ASSERT_EQUAL(NULL, frx_fsm_get_block_context(&fsm));
 
-    test_values_t values = {0};
-    e = frx_fsm_get_values(&fsm, &values, sizeof(values));
+    test_result_snapshot_t result = {0};
+    e = frx_fsm_get_slot(&fsm, test_slot_process_output, &result, sizeof(result));
     TEST_ASSERT_EQUAL(e_syserr_none, e);
-    TEST_ASSERT_EQUAL(1, values.ran);
-    TEST_ASSERT_EQUAL(77, values.last_block);
+    TEST_ASSERT_EQUAL(1, result.ran);
+    TEST_ASSERT_EQUAL(77, result.last_block);
 }
 
 void setup(){
