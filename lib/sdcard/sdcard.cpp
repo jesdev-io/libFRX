@@ -555,6 +555,9 @@ static inline void __sd_transfer(void* p) {
         }
         if (stream.direction == sd_stream_direction_out) {
             points_transferred = fread(local_buf, stream.type_in_byte, stream.block_len, stream.f);
+            if (points_transferred > 0) {
+                memcpy(stream.data, local_buf, stream.type_in_byte * points_transferred);
+            }
         }
         xSemaphoreGive(stream_lock);
         e_syserr_t transfer_error = e_syserr_none;
