@@ -1,6 +1,8 @@
 #ifdef FRX_ENABLE_MODULE_DSP_FRX
 
+#include <memory.h>
 #include "dsp_frx.h"
+#include "syserr.h"
 
 float dsp_frx_sin_bhaskara_I(float x) {
     // https://en.wikipedia.org/wiki/Bh%C4%81skara_I%27s_sine_approximation_formula
@@ -83,6 +85,44 @@ audio_val_t dsp_frx_sample_cleanup(audio_sample_t data, uint8_t nch){
         scaled.ch[i] -= dc_values.ch[i];
     }
     return scaled;
+}
+
+float __dsp_frx_fc_ula_broadside(dsp_frx_ula_t* ula_cfg, float c){
+    return c / (2*ula_cfg->dist);
+}
+
+void __dsp_frx_tf_ula_broadside(dsp_frx_ula_t* ula_cfg, float c, float* gains, float f, uint16_t steps){
+    float step = M_TWOPI / steps;
+    float angle = 0;
+    for(uint16_t i = 0; i < steps; i++){
+        float tau = ula_cfg->dist/c * cosf(angle);
+        gains[i] = 2*cosf(M_TWOPI*f*tau/2);
+        angle += step;
+    }
+}
+
+e_syserr_t __dsp_frx_run_ula_broadside(audio_io_t* iobuf, dsp_frx_ula_t* ula_cfg){
+    if(!iobuf || !iobuf->in || !iobuf->out || !ula_cfg) return e_syserr_param;
+    uint8_t in_chs = 0;
+    uint8_t out_chs = 0;
+    for(uint8_t i = 0; i < AUDIO_MAX_NUM_CH; i++){
+        if(ula_cfg->ch_in_select[i]) in_chs++;
+        if(ula_cfg->ch_in_select[i]) out_chs++;
+    }
+    if(in_chs < 2) return e_syserr_param;
+    if(out_chs < 1) return e_syserr_param;
+    for(uint32_t n = 0; n < iobuf->len; n++){ // sample iterator
+        audio_ovf_safe_sample_base_t acc = 0;
+        for(uint8_t i = 0; i < AUDIO_MAX_NUM_CH; i++){ // input channel iterator
+            if(!ula_cfg->ch_in_select[i]) continue;
+            acc += iobuf->in[n].ch[i];
+        }
+        for(uint8_t i = 0; i < AUDIO_MAX_NUM_CH; i++){ // output channel iterator
+            if(!ula_cfg->ch_out_select[i]) continue;
+            iobuf->out[n].ch[i] = acc / in_chs;   
+        }
+    }
+    return e_syserr_none;
 }
 
 #endif // FRX_ENABLE_MODULE_DSP_FRX

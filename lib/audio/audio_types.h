@@ -15,6 +15,7 @@
 #endif
 
 typedef int32_t audio_sample_base_t;
+typedef int64_t audio_ovf_safe_sample_base_t;
 typedef float audio_val_base_t;
 
 /// @brief Sample description in time. All channels run in parallel.

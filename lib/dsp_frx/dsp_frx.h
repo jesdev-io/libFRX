@@ -26,6 +26,13 @@
 #define DSP_FRX_ROLL_AVG_N 10
 #endif
 
+/// @brief 
+typedef struct{
+    uint8_t ch_in_select[AUDIO_MAX_NUM_CH];
+    uint8_t ch_out_select[AUDIO_MAX_NUM_CH];
+    float dist;
+}dsp_frx_ula_t;
+
 /// @brief Fast sine approximation based on Bhaskara I algorithm.
 /// @param x Wrapped or unwrapped phase.
 /// @return Sine approximation.
