@@ -6,6 +6,33 @@
 #include "syserr.h"
 #include <string.h>
 
+// Display pointers array
+static Adafruit_ST77xx* waveshare_triple_displays[WAVESHARE_TRIPLE_COUNT] = {
+    (Adafruit_ST77xx*)&waveshare_triple_right,
+    (Adafruit_ST77xx*)&waveshare_triple_left,
+    (Adafruit_ST77xx*)&waveshare_triple_center
+};
+
+// Display dimensions
+static const uint16_t fr2_ui_display_widths[WAVESHARE_TRIPLE_COUNT] = {
+    WAVESHARE_TRIPLE_SMALL_WIDTH,
+    WAVESHARE_TRIPLE_SMALL_WIDTH,
+    WAVESHARE_TRIPLE_CENTER_WIDTH
+};
+
+static const uint16_t display_heights[WAVESHARE_TRIPLE_COUNT] = {
+    WAVESHARE_TRIPLE_SMALL_HEIGHT,
+    WAVESHARE_TRIPLE_SMALL_HEIGHT,
+    WAVESHARE_TRIPLE_CENTER_HEIGHT
+};
+
+// Background colors
+static const uint16_t waveshare_triple_bg_colors[WAVESHARE_TRIPLE_COUNT] = {
+    WAVESHARE_TRIPLE_RIGHT_BG_COLOR,
+    WAVESHARE_TRIPLE_LEFT_BG_COLOR,
+    WAVESHARE_TRIPLE_CENTER_BG_COLOR
+};
+
 void test_waveshare_triple_init(void){
     hspi.begin(WAVESHARE_TRIPLE_CENTER_SCLK, -1, WAVESHARE_TRIPLE_CENTER_MOSI, WAVESHARE_TRIPLE_CENTER_CS);
 

@@ -53,9 +53,10 @@ typedef struct ui_display_s ui_display_t;
  * display_fill_fn  – flood-fill a rectangle with a solid colour.
  * display_clear_fn – clear the whole framebuffer to bg_color.
  */
-typedef void (*display_init_fn)(ui_display_t *disp);
+
 typedef void (*display_draw_fn)(ui_display_t *disp,
                                 uint16_t x, uint16_t y,
+                                uint16_t w, uint16_t h,
                                 const ui_bitmap_t *bmp,
                                 ui_color_t fg, ui_color_t bg);
 typedef void (*display_fill_fn)(ui_display_t *disp,
@@ -63,6 +64,8 @@ typedef void (*display_fill_fn)(ui_display_t *disp,
                                 uint16_t w, uint16_t h,
                                 ui_color_t color);
 typedef void (*display_clear_fn)(ui_display_t *disp, ui_color_t color);
+
+typedef void (*display_init_fn)(ui_display_t *disp); // by forcing the user to pass the input at initializatin of the display, we guarantee that the functions are linked properly.
  
 struct ui_display_s {
     uint8_t          id;          /* unique display ID                    */
@@ -72,10 +75,7 @@ struct ui_display_s {
     ui_color_t       default_bg;
     display_init_fn  init;
     display_draw_fn  draw;
-    display_fill_fn  fill;
     display_clear_fn clear;
-    void            *driver_ctx; /* opaque pointer to driver state        */
-    bool             initialized;
 };
 
 /* ============================================================
@@ -123,57 +123,24 @@ typedef enum {
     WIDGET_BOUNCE    = 2, /* bounces around the display              */
 } ui_widget_type_t;
  
-struct ui_widget_s {
-    /* --- identity & layout ---------------------------------- */
-    uint8_t           idx;        /* 0 = not selectable; >0 = tab order */
-    int16_t           x;
-    int16_t           y;
-    uint16_t          width;
-    uint16_t          height;
- 
-    /* --- appearance ----------------------------------------- */
-    ui_color_t        color;      /* foreground colour                  */
-    ui_color_t        bg_color;   /* background colour                  */
-    const ui_bitmap_t *bitmap;    /* NULL for container/animated widgets */
- 
-    /* --- selection state ------------------------------------ */
-    bool              selected;
- 
-    /* --- type & behaviour ----------------------------------- */
-    ui_widget_type_t  type;
- 
-    /* --- children (animation frames or sub-widgets) --------- */
-    ui_widget_t      **children;  /* NULL-terminated array of pointers  */
-    uint8_t           num_children;
- 
-    /* --- animation ------------------------------------------ */
-    ui_anim_cb_t      anim_cb;    /* callback config (HOOK or SELECTOR) */
-    uint8_t           fps;        /* desired frames per second          */
-    uint32_t          duration;   /* frames total; 0 = infinite         */
- 
-    /* --- bounce --------------------------------------------- */
-    ui_bounce_t       bounce;     /* only used when type == WIDGET_BOUNCE */
- 
-    /* --- runtime state (managed by ui_anim / ui_render) ----- */
-    uint32_t          _frame;          /* current frame counter          */
-    uint8_t           _active_child;   /* currently visible child index  */
-    ui_update_priority_t _tick_tier;   /* resolved priority tier         */
-    uint32_t          _tick_counter;   /* sub-frame accumulator          */
-    ui_display_t     *_display;        /* back-pointer set at register   */
-};
+
  
 /* ============================================================
  *  Page
  * ============================================================ */
 typedef struct {
-    uint8_t       idx;           /* page index; must be unique, ≥ 1    */
-    uint8_t       disp_id;       /* which physical display to render on */
-    ui_color_t    bg_color;
-    ui_widget_t **widgets;       /* NULL-terminated array of pointers   */
-    uint8_t       num_widgets;
-    ui_display_t *display;       /* resolved by ui_page_register()      */
+    uint8_t id;
+    
+    // Widget management
+    ui_widget_t** widgets;
+    uint16_t widget_count;
+    
+    // // Callbacks TBD
+    // ui_page_enter_cb_t enter_callback;
+    // ui_page_exit_cb_t exit_callback;
+    // ui_page_update_cb_t update_callback;
+    // void* p_user_data;
 } ui_page_t;
- 
 /* ============================================================
  *  Registry limits
  * ============================================================ */

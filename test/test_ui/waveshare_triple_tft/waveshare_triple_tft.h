@@ -60,45 +60,6 @@ typedef enum{
 // Static display objects
 static SPIClass hspi(HSPI);
 
-/* ============================================================
- *  Public display structs (extern, defined in .c)
- *  Use these directly in ui_display_register() and page setup.
- * ============================================================ */
-// extern ui_display_t waveshare_triple_left;
-// extern ui_display_t waveshare_triple_center;
-// extern ui_display_t waveshare_triple_right;
-
-static Adafruit_ST7735 waveshare_triple_right(WAVESHARE_TRIPLE_RIGHT_CS, WAVESHARE_TRIPLE_RIGHT_DC, WAVESHARE_TRIPLE_RIGHT_RST);
-static Adafruit_ST7735 waveshare_triple_left(WAVESHARE_TRIPLE_LEFT_CS, WAVESHARE_TRIPLE_LEFT_DC, WAVESHARE_TRIPLE_LEFT_RST);
-static Adafruit_ST7789 waveshare_triple_center(&hspi, WAVESHARE_TRIPLE_CENTER_CS, WAVESHARE_TRIPLE_CENTER_DC, WAVESHARE_TRIPLE_CENTER_RST);
-
-// Display pointers array
-static Adafruit_ST77xx* waveshare_triple_displays[WAVESHARE_TRIPLE_COUNT] = {
-    (Adafruit_ST77xx*)&waveshare_triple_right,
-    (Adafruit_ST77xx*)&waveshare_triple_left,
-    (Adafruit_ST77xx*)&waveshare_triple_center
-};
-
-// Display dimensions
-static const uint16_t fr2_ui_display_widths[WAVESHARE_TRIPLE_COUNT] = {
-    WAVESHARE_TRIPLE_SMALL_WIDTH,
-    WAVESHARE_TRIPLE_SMALL_WIDTH,
-    WAVESHARE_TRIPLE_CENTER_WIDTH
-};
-
-static const uint16_t display_heights[WAVESHARE_TRIPLE_COUNT] = {
-    WAVESHARE_TRIPLE_SMALL_HEIGHT,
-    WAVESHARE_TRIPLE_SMALL_HEIGHT,
-    WAVESHARE_TRIPLE_CENTER_HEIGHT
-};
-
-// Background colors
-static const uint16_t waveshare_triple_bg_colors[WAVESHARE_TRIPLE_COUNT] = {
-    WAVESHARE_TRIPLE_RIGHT_BG_COLOR,
-    WAVESHARE_TRIPLE_LEFT_BG_COLOR,
-    WAVESHARE_TRIPLE_CENTER_BG_COLOR
-};
-
  
 /* ============================================================
  *  Waveshare Triple TFT – display identifiers
